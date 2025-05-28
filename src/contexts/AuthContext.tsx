@@ -1,33 +1,35 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { authService } from "@/services/auth.service";
-import { User } from "@/services/auth.service";
+import { useNavigate } from "react-router-dom";
+
+interface User {
+    id: string;
+    name: string;
+    email: string;
+    picture?: string;
+    currentHouseRole?: "OWNER" | "MEMBER";
+}
 
 interface AuthContextType {
     user: User | null;
-    setUser: (user: User | null) => void;
+    setUser: React.Dispatch<React.SetStateAction<User | null>>;
     logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-
-    useEffect(() => {
-        // Check if user is authenticated
-        if (authService.isAuthenticated()) {
-            // Set a default user object since we're not fetching user info
-            setUser({
-                id: "1",
-                email: "user@example.com",
-                name: "User",
-            });
-        }
-    }, []);
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+    children,
+}) => {
+    const [user, setUser] = useState<User | null>(() => {
+        const storedUser = localStorage.getItem("user");
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
+    const navigate = useNavigate();
 
     const logout = () => {
-        authService.logout();
+        localStorage.removeItem("user");
         setUser(null);
+        navigate("/login");
     };
 
     return (
@@ -35,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             {children}
         </AuthContext.Provider>
     );
-}
+};
 
 export function useAuth() {
     const context = useContext(AuthContext);

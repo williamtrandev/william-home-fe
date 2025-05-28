@@ -1,4 +1,4 @@
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter as Router } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import AppRoutes from "@/routes";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Toaster } from "sonner";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ function App() {
             <ThemeProvider>
                 <LanguageProvider>
                     <AuthProvider>
+                        <Toaster richColors position="top-right" />
                         <AppRoutes />
                     </AuthProvider>
                 </LanguageProvider>
@@ -39,9 +41,9 @@ function App() {
 
 // Wrap App with BrowserRouter
 const AppWithRouter = () => (
-    <BrowserRouter>
+    <Router>
         <App />
-    </BrowserRouter>
+    </Router>
 );
 
 export default AppWithRouter;

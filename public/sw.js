@@ -1,11 +1,8 @@
-const CACHE_NAME = 'william-calculate-v2';
+const CACHE_NAME = 'william-calculate-v3';
 const urlsToCache = [
 	'/',
 	'/index.html',
 	'/manifest.json',
-	'/src/main.tsx',
-	'/src/App.tsx',
-	'/src/components/PWAInstallPrompt.tsx',
 	'/icons/icon-72x72.png',
 	'/icons/icon-96x96.png'
 ];
@@ -21,6 +18,13 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+	// Skip caching for TypeScript files and API requests
+	if (event.request.url.includes('.ts') ||
+		event.request.url.includes('.tsx') ||
+		event.request.url.includes('/api/')) {
+		return;
+	}
+
 	event.respondWith(
 		caches.match(event.request)
 			.then((response) => {

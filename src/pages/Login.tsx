@@ -138,7 +138,7 @@ const Login = () => {
                             >
                                 <GoogleLogin
                                     onSuccess={() => {
-                                        toast.success(t("loginSuccess"));
+                                        // Remove toast.success here since it's already handled in GoogleLogin component
                                     }}
                                 />
                             </motion.div>

@@ -6,6 +6,8 @@ import GoogleCallback from "@/pages/GoogleCallback";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/layouts/AppLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
+import Members from "@/pages/Members";
+import JoinHouse from "@/pages/JoinHouse";
 
 function AppRoutes() {
     const { user } = useAuth();
@@ -18,6 +20,7 @@ function AppRoutes() {
                     path="/auth/google/callback"
                     element={<GoogleCallback />}
                 />
+                <Route path="/join-house/:token" element={<JoinHouse />} />
                 <Route path="*" element={<Login />} />
             </Routes>
         );
@@ -26,12 +29,13 @@ function AppRoutes() {
     return (
         <Routes>
             <Route element={<AppLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/members" element={<Members />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route
                     path="/previous"
                     element={
-                        <div className="p-6">
+                        <div className="container mx-auto p-6 space-y-8">
                             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 {t("previousMonths")}
                             </h1>
@@ -44,7 +48,7 @@ function AppRoutes() {
                 <Route
                     path="/notifications"
                     element={
-                        <div className="p-6">
+                        <div className="container mx-auto p-6 space-y-8">
                             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 {t("notifications")}
                             </h1>
@@ -57,7 +61,7 @@ function AppRoutes() {
                 <Route
                     path="/settings"
                     element={
-                        <div className="p-6">
+                        <div className="container mx-auto p-6 space-y-8">
                             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 {t("settings")}
                             </h1>
@@ -70,7 +74,7 @@ function AppRoutes() {
                 <Route
                     path="/help"
                     element={
-                        <div className="p-6">
+                        <div className="container mx-auto p-6 space-y-8">
                             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 {t("help")}
                             </h1>
@@ -79,6 +83,10 @@ function AppRoutes() {
                             </p>
                         </div>
                     }
+                />
+                <Route
+                    path="/"
+                    element={<Navigate to="/dashboard" replace />}
                 />
                 <Route
                     path="*"

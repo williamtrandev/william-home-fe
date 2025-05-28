@@ -18,6 +18,7 @@ import {
     Settings,
     HelpCircle,
     Bell,
+    UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -68,6 +69,16 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
             label: t("profile"),
             path: "/profile",
         },
+        // Add members management for house owners
+        ...(user?.currentHouseRole === "OWNER"
+            ? [
+                  {
+                      icon: UserPlus,
+                      label: t("manageMembers"),
+                      path: "/members",
+                  },
+              ]
+            : []),
     ];
 
     const handleNavigation = (path: string) => {

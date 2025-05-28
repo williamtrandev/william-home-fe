@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
     Plus,
     TrendingUp,
+    TrendingDown,
     Wallet,
     CreditCard,
     Target,
@@ -30,6 +31,27 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import ExpenseList from "@/components/expenses/ExpenseList";
+import { expenseService } from "@/services/expense.service";
+import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/auth.service";
+import AvatarSelectorModal from "@/components/auth/AvatarSelectorModal";
+
+interface GrowthStats {
+    totalAmountGrowth: string;
+    totalExpensesGrowth: string;
+    avgExpenseGrowth: string;
+    avgPerPersonGrowth: string;
+}
+
+interface Stats {
+    totalAmount: number;
+    totalExpenses: number;
+    avgExpense: number;
+    avgPerPerson: number;
+    memberCount: number;
+    growthStats: GrowthStats;
+}
 
 const Dashboard = () => {
     const { t } = useLanguage();
@@ -42,6 +64,48 @@ const Dashboard = () => {
     const [paymentResults, setPaymentResults] = useState<
         Record<string, number>
     >({});
+    const [isLoading, setIsLoading] = useState(false);
+    const [refetchTrigger, setRefetchTrigger] = useState(0);
+    const { user, setUser } = useAuth();
+    const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [stats, setStats] = useState<Stats>({
+        totalAmount: 0,
+        totalExpenses: 0,
+        avgExpense: 0,
+        avgPerPerson: 0,
+        memberCount: 0,
+        growthStats: {
+            totalAmountGrowth: "0",
+            totalExpensesGrowth: "0",
+            avgExpenseGrowth: "0",
+            avgPerPersonGrowth: "0",
+        },
+    });
+
+    useEffect(() => {
+        // Check if user has avatar
+        if (user && !user.picture) {
+            console.log("User has no avatar:", user); // Debug log
+            setShowAvatarModal(true);
+        } else {
+            console.log("User has avatar:", user); // Debug log
+            setShowAvatarModal(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const response = await expenseService.getStatistics();
+                setStats(response);
+            } catch (error) {
+                console.error("Error fetching statistics:", error);
+                toast.error(t("statsFetchFailed"));
+            }
+        };
+
+        fetchStats();
+    }, [refetchTrigger]); // Refetch when expenses are updated
 
     const handleExpenseSubmit = (expense: Expense) => {
         if (editingExpense) {
@@ -73,7 +137,7 @@ const Dashboard = () => {
         setQuickInput(value);
     };
 
-    const handleQuickInputKeyPress = (
+    const handleQuickInputKeyPress = async (
         e: React.KeyboardEvent<HTMLInputElement>
     ) => {
         if (e.key === "Enter") {
@@ -90,29 +154,21 @@ const Dashboard = () => {
                     finalAmount *= 1000000;
                 }
 
-                // Format date as dd-mm-yyyy
-                const today = new Date();
-                const formattedDate = `${String(today.getDate()).padStart(
-                    2,
-                    "0"
-                )}-${String(today.getMonth() + 1).padStart(
-                    2,
-                    "0"
-                )}-${today.getFullYear()}`;
-
-                // Create new expense
-                const newExpense: Expense = {
-                    id: Date.now().toString(),
-                    amount: finalAmount,
-                    purpose: purpose.trim(),
-                    date: formattedDate,
-                    memberName: "William Nguyen",
-                    memberId: "1",
-                };
-
-                // Add to expenses
-                setExpenses([...expenses, newExpense]);
-                setQuickInput(""); // Clear input after adding
+                try {
+                    setIsLoading(true);
+                    await expenseService.createExpense({
+                        amount: finalAmount,
+                        purpose: purpose.trim(),
+                    });
+                    toast.success(t("expenseCreated"));
+                    setQuickInput(""); // Clear input after adding
+                    setRefetchTrigger((prev) => prev + 1); // Trigger refetch
+                } catch (error) {
+                    console.error("Error creating expense:", error);
+                    toast.error(t("expenseCreateFailed"));
+                } finally {
+                    setIsLoading(false);
+                }
             }
         }
     };
@@ -134,43 +190,66 @@ const Dashboard = () => {
         toast.success(t("paymentNotification"));
     };
 
-    const stats = [
+    const formatGrowth = (growth: string) => {
+        if (growth === "+inf") return { value: "∞", isPositive: true };
+        if (growth === "-inf") return { value: "∞", isPositive: false };
+
+        const isPositive = growth.startsWith("+");
+        const value = growth.replace("+", "").replace("-", "");
+        return { value, isPositive };
+    };
+
+    const statsCards = [
         {
             title: t("total"),
-            value: `${totalExpenses.toLocaleString("vi-VN")}₫`,
+            value: `${stats.totalAmount.toLocaleString("vi-VN")}₫`,
             icon: Wallet,
             color: "text-blue-600",
             bgColor: "bg-blue-50 dark:bg-blue-950/20",
-            change: "+12%",
+            growth: stats.growthStats?.totalAmountGrowth,
         },
         {
             title: t("avgSpending"),
-            value: "1,850,000₫",
+            value: `${Math.round(stats.avgExpense).toLocaleString("vi-VN")}₫`,
             icon: TrendingUp,
             color: "text-green-600",
             bgColor: "bg-green-50 dark:bg-green-950/20",
-            change: "+8%",
+            growth: stats.growthStats?.avgExpenseGrowth,
         },
         {
             title: t("transactions"),
-            value: expenses.length.toString(),
+            value: stats.totalExpenses.toString(),
             icon: CreditCard,
             color: "text-purple-600",
             bgColor: "bg-purple-50 dark:bg-purple-950/20",
-            change: `+${expenses.length}`,
+            growth: stats.growthStats?.totalExpensesGrowth,
         },
         {
             title: t("perCapita"),
-            value: "700,000₫",
+            value: `${Math.round(stats.avgPerPerson).toLocaleString("vi-VN")}₫`,
             icon: Target,
             color: "text-orange-600",
             bgColor: "bg-orange-50 dark:bg-orange-950/20",
-            change: "82%",
+            growth: stats.growthStats?.avgPerPersonGrowth,
         },
     ];
 
+    const handleAvatarSelect = async (avatarUrl: string) => {
+        try {
+            const updatedUser = await authService.updateProfile({
+                picture: avatarUrl,
+            });
+            setUser(updatedUser);
+            setShowAvatarModal(false);
+            toast.success(t("avatarUpdated"));
+        } catch (error) {
+            console.error("Error updating avatar:", error);
+            toast.error(t("avatarUpdateFailed"));
+        }
+    };
+
     return (
-        <div className="p-6 space-y-8">
+        <div className="container mx-auto p-6 space-y-8">
             {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -191,6 +270,7 @@ const Dashboard = () => {
                         value={quickInput}
                         onChange={(e) => handleQuickInput(e.target.value)}
                         onKeyPress={handleQuickInputKeyPress}
+                        disabled={isLoading}
                         className="w-full sm:w-[400px] bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300 text-base"
                     />
                     <Button
@@ -205,41 +285,57 @@ const Dashboard = () => {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                {stats.map((stat, index) => (
-                    <motion.div
-                        key={stat.title}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        whileHover={{ scale: 1.02 }}
-                        className="group"
-                    >
-                        <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 gradient-card">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 sm:pb-3">
-                                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                                    {stat.title}
-                                </CardTitle>
-                                <div
-                                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${stat.bgColor} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
-                                >
-                                    <stat.icon
-                                        className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.color}`}
-                                    />
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-lg sm:text-2xl font-bold text-foreground">
-                                    {stat.value}
-                                </div>
-                                <p
-                                    className={`text-xs ${stat.color} font-medium`}
-                                >
-                                    {stat.change} {t("fromLastMonth")}
-                                </p>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                ))}
+                {statsCards.map((stat, index) => {
+                    const { value, isPositive } = formatGrowth(
+                        stat.growth || "0"
+                    );
+                    return (
+                        <motion.div
+                            key={stat.title}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            whileHover={{ scale: 1.02 }}
+                            className="group"
+                        >
+                            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 gradient-card">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 sm:pb-3">
+                                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                                        {stat.title}
+                                    </CardTitle>
+                                    <div
+                                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${stat.bgColor} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
+                                    >
+                                        <stat.icon
+                                            className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.color}`}
+                                        />
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-lg sm:text-2xl font-bold text-foreground">
+                                        {stat.value}
+                                    </div>
+                                    <div className="flex items-center gap-1 mt-1">
+                                        {isPositive ? (
+                                            <TrendingUp
+                                                className={`w-4 h-4 ${stat.color}`}
+                                            />
+                                        ) : (
+                                            <TrendingDown
+                                                className={`w-4 h-4 ${stat.color}`}
+                                            />
+                                        )}
+                                        <p
+                                            className={`text-xs font-medium ${stat.color}`}
+                                        >
+                                            {value}%
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    );
+                })}
             </div>
 
             {/* Recent Expenses */}
@@ -259,87 +355,7 @@ const Dashboard = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {expenses.length === 0 ? (
-                            <div className="text-center py-8 sm:py-12">
-                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-950 dark:to-purple-950 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                                    <Wallet className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
-                                </div>
-                                <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1 sm:mb-2">
-                                    {t("noExpenses")}
-                                </h3>
-                                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-                                    {t("startTracking")}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-2 sm:space-y-3">
-                                {expenses.map((expense, index) => (
-                                    <motion.div
-                                        key={expense.id}
-                                        initial={{ opacity: 0, x: -20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: index * 0.1 }}
-                                        className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg bg-background/50 hover:bg-background/80 transition-colors border border-border/50 gap-2 sm:gap-3"
-                                    >
-                                        <div className="flex items-center gap-3 sm:gap-4">
-                                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm sm:text-base shadow-lg ring-2 ring-white dark:ring-gray-800">
-                                                {expense.purpose[0]}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-medium text-sm sm:text-base text-foreground truncate">
-                                                    {expense.purpose}
-                                                </p>
-                                                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                                                    <span className="flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" />
-                                                        {expense.date}
-                                                    </span>
-                                                    <span>•</span>
-                                                    <span className="flex items-center gap-1">
-                                                        <User className="w-3 h-3" />
-                                                        {expense.memberName}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 border-t sm:border-t-0 pt-2 sm:pt-0">
-                                            <span className="font-semibold text-sm sm:text-base text-foreground">
-                                                {expense.amount.toLocaleString(
-                                                    "vi-VN"
-                                                )}
-                                                ₫
-                                            </span>
-                                            <div className="flex gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handleEditExpense(
-                                                            expense
-                                                        )
-                                                    }
-                                                    className="h-8 px-2 sm:h-9 sm:px-3 hover:bg-blue-100 dark:hover:bg-blue-950 text-blue-600 dark:text-blue-400"
-                                                >
-                                                    {t("edit")}
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handleDeleteExpense(
-                                                            expense.id
-                                                        )
-                                                    }
-                                                    className="h-8 px-2 sm:h-9 sm:px-3 hover:bg-red-100 dark:hover:bg-red-950 text-red-600 dark:text-red-400"
-                                                >
-                                                    {t("delete")}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        )}
+                        <ExpenseList refetchTrigger={refetchTrigger} />
                     </CardContent>
                 </Card>
             </motion.div>
@@ -436,6 +452,12 @@ const Dashboard = () => {
                 }}
                 onSubmit={handleExpenseSubmit}
                 editingExpense={editingExpense}
+            />
+
+            <AvatarSelectorModal
+                isOpen={showAvatarModal}
+                onClose={() => setShowAvatarModal(false)}
+                onSelect={handleAvatarSelect}
             />
         </div>
     );

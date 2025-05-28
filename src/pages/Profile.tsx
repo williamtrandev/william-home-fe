@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,30 +9,96 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Camera, Mail, User, Shield, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { authService } from "@/services/auth.service";
+import { useLocation } from "react-router-dom";
+
+// Function to get avatar options based on picture URL
+const getAvatarOptions = (pictureUrl: string) => {
+    const isFemale = pictureUrl.toLowerCase().includes("female");
+    const gender = isFemale ? "female" : "male";
+    return Array.from(
+        { length: 8 },
+        (_, i) => `/avatar/${gender}/avatar${i + 1}.png`
+    );
+};
 
 const Profile = () => {
     const { t } = useLanguage();
-    const { user } = useAuth();
+    const { user: authUser, setUser } = useAuth();
+    const location = useLocation();
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
-        name: user?.name || "",
-        email: user?.email || "",
-        avatar: user?.avatar || "",
+        name: "",
+        email: "",
+        avatar: "",
     });
 
-    const handleSave = () => {
-        // Simulate saving
-        toast.success(t("profileUpdated"));
+    // Get user data once
+    const userData = authService.getUser();
+
+    // Get avatar options based on current form data or user's picture
+    const avatarOptions = getAvatarOptions(
+        formData.avatar || userData?.picture || ""
+    );
+
+    // Initialize form data only once
+    useEffect(() => {
+        if (userData) {
+            setFormData({
+                name: userData.name || "",
+                email: userData.email || "",
+                avatar: userData.picture || avatarOptions[0],
+            });
+        }
+    }, []); // Empty dependency array to run only once
+
+    const handleSave = async () => {
+        try {
+            const updateData = {
+                name: formData.name,
+                email: formData.email,
+                picture: formData.avatar,
+            };
+
+            await authService.updateProfile(updateData);
+            // Update user in context to reflect changes in header
+            setUser({
+                ...authUser!,
+                name: formData.name,
+                email: formData.email,
+                picture: formData.avatar,
+            });
+            toast.success(t("profileUpdated"));
+            setIsEditing(false);
+        } catch (error) {
+            toast.error(t("updateFailed"));
+        }
+    };
+
+    const handleAvatarSelect = (avatarUrl: string) => {
+        setFormData((prev) => ({
+            ...prev,
+            avatar: avatarUrl,
+        }));
+    };
+
+    const handleCancel = () => {
+        // Reset form data to original values
+        if (userData) {
+            setFormData({
+                name: userData.name || "",
+                email: userData.email || "",
+                avatar: userData.picture || "",
+            });
+        }
         setIsEditing(false);
     };
 
-    const handleImageUpload = () => {
-        // Simulate image upload
-        toast.success(t("avatarUpdated"));
-    };
+    // Check if user has no avatar
+    const hasNoAvatar = !userData?.picture;
 
     return (
-        <div className="p-6 space-y-8">
+        <div className="container mx-auto p-6 space-y-8">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -70,6 +136,7 @@ const Profile = () => {
                                     <AvatarImage
                                         src={formData.avatar}
                                         alt={formData.name}
+                                        className="object-cover w-full h-full"
                                     />
                                     <AvatarFallback className="gradient-primary text-white text-2xl font-bold">
                                         {formData.name?.[0]}
@@ -79,7 +146,9 @@ const Profile = () => {
                                     <motion.button
                                         whileHover={{ scale: 1.1 }}
                                         whileTap={{ scale: 0.9 }}
-                                        onClick={handleImageUpload}
+                                        onClick={() =>
+                                            handleAvatarSelect(avatarOptions[0])
+                                        }
                                         className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
                                     >
                                         <Camera className="w-4 h-4" />
@@ -98,26 +167,18 @@ const Profile = () => {
                                 <div className="flex items-center justify-center gap-2 mt-2">
                                     <Shield className="w-4 h-4 text-primary" />
                                     <span className="text-sm font-medium text-primary capitalize">
-                                        {user?.role}
+                                        {authUser?.role || "user"}
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                            <div className="grid grid-cols-1 gap-4 pt-4 border-t">
                                 <div className="text-center">
                                     <div className="text-2xl font-bold text-primary">
                                         15
                                     </div>
                                     <div className="text-xs text-muted-foreground">
                                         {t("expenses")}
-                                    </div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-green-600">
-                                        3
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {t("months")}
                                     </div>
                                 </div>
                             </div>
@@ -193,30 +254,50 @@ const Profile = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label
-                                    htmlFor="avatar"
-                                    className="text-sm font-medium"
-                                >
-                                    {t("avatarUrl")}
-                                </Label>
-                                <div className="relative">
-                                    <Upload className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                                    <Input
-                                        id="avatar"
-                                        value={formData.avatar}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                avatar: e.target.value,
-                                            })
-                                        }
-                                        disabled={!isEditing}
-                                        className="pl-10 h-12 bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300"
-                                        placeholder={t("enterAvatarUrl")}
-                                    />
+                            {isEditing && (
+                                <div className="space-y-4">
+                                    <Label className="text-sm font-medium">
+                                        {t("selectAvatar")}
+                                    </Label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 p-4 bg-muted/30 rounded-xl">
+                                        {avatarOptions.map((avatar, index) => (
+                                            <motion.div
+                                                key={index}
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={() =>
+                                                    handleAvatarSelect(avatar)
+                                                }
+                                                className={`relative cursor-pointer rounded-xl overflow-hidden transition-all duration-300 ${
+                                                    formData.avatar === avatar
+                                                        ? "ring-2 ring-primary shadow-lg"
+                                                        : "hover:shadow-md"
+                                                }`}
+                                            >
+                                                <div className="aspect-square relative group">
+                                                    <Avatar className="w-full h-full rounded-xl">
+                                                        <AvatarImage
+                                                            src={avatar}
+                                                            className="object-cover w-full h-full"
+                                                        />
+                                                        <AvatarFallback className="text-lg bg-gradient-to-br from-primary/20 to-primary/10">
+                                                            {index + 1}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    {formData.avatar ===
+                                                        avatar && (
+                                                        <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                                                <div className="w-4 h-4 rounded-full bg-primary" />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {isEditing && (
                                 <motion.div
@@ -233,7 +314,7 @@ const Profile = () => {
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        onClick={() => setIsEditing(false)}
+                                        onClick={handleCancel}
                                         className="h-12"
                                     >
                                         {t("cancel")}

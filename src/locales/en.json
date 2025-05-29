@@ -91,6 +91,7 @@
     "expenseAmount": "Amount",
     "expenseDate": "Date",
     "expenseCreator": "Created By",
+    "expenseCreated": "Expense created successfully",
     "prevPage": "Previous Page",
     "nextPage": "Next Page",
     "pageInfo": "Page {current} of {total}",

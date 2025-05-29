@@ -91,6 +91,7 @@
     "expenseAmount": "Số tiền",
     "expenseDate": "Ngày",
     "expenseCreator": "Người tạo",
+    "expenseCreated": "Đã thêm chi tiêu thành công",
     "prevPage": "Trang trước",
     "nextPage": "Trang sau",
     "pageInfo": "Trang {current} / {total}",

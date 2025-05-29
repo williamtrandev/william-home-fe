@@ -7,6 +7,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#3b82f6" />
   <meta name="description" content="Track and manage your expenses with William Calculate" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="apple-touch-icon" href="/icons/icon-96x96.png" />
   <link rel="manifest" href="/manifest.json" />
   <title>William Calculate</title>
@@ -18,7 +20,9 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('/sw.js', {
+          scope: '/'
+        })
           .then((registration) => {
             console.log('ServiceWorker registration successful');
           })

@@ -23,6 +23,8 @@ const GoogleLoginButton = ({ onSuccess }: GoogleLoginProps) => {
     const { t, language } = useLanguage();
     const { setUser } = useAuth();
 
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
     const handleGoogleSuccess = async (credentialResponse: any) => {
         try {
             setIsLoading(true);
@@ -91,6 +93,34 @@ const GoogleLoginButton = ({ onSuccess }: GoogleLoginProps) => {
         setIsLoading(false);
     };
 
+    const handleLogin = () => {
+        if (isIOS) {
+            // For iOS, use direct URL approach
+            const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+            const redirectUri = window.location.origin;
+            const scope = "openid email profile";
+            const responseType = "id_token";
+            const nonce = Math.random().toString(36).substring(2);
+
+            const authUrl =
+                `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${clientId}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `response_type=${responseType}&` +
+                `scope=${encodeURIComponent(scope)}&` +
+                `nonce=${nonce}&` +
+                `prompt=select_account`;
+
+            window.location.href = authUrl;
+        } else {
+            // For other devices, use the Google button
+            const googleButton = document.querySelector('div[role="button"]');
+            if (googleButton) {
+                (googleButton as HTMLElement).click();
+            }
+        }
+    };
+
     // Add debug log
     console.log("Component state:", { showAvatarModal, isLoading });
 
@@ -112,21 +142,7 @@ const GoogleLoginButton = ({ onSuccess }: GoogleLoginProps) => {
                     }}
                 />
                 <Button
-                    onClick={() => {
-                        const googleButton =
-                            document.querySelector('div[role="button"]');
-                        if (googleButton) {
-                            (googleButton as HTMLElement).click();
-                        }
-                    }}
-                    onTouchStart={(e) => {
-                        e.preventDefault();
-                        const googleButton =
-                            document.querySelector('div[role="button"]');
-                        if (googleButton) {
-                            (googleButton as HTMLElement).click();
-                        }
-                    }}
+                    onClick={handleLogin}
                     disabled={isLoading}
                     className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-semibold hover:from-blue-700 hover:to-purple-700 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] border-0 active:scale-[0.98]"
                 >

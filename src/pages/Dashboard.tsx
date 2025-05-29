@@ -202,7 +202,7 @@ const Dashboard = () => {
     const statsCards = [
         {
             title: t("total"),
-            value: `${stats.totalAmount.toLocaleString("vi-VN")}₫`,
+            value: `${(stats.totalAmount || 0).toLocaleString("vi-VN")}₫`,
             icon: Wallet,
             color: "text-blue-600",
             bgColor: "bg-blue-50 dark:bg-blue-950/20",
@@ -210,7 +210,9 @@ const Dashboard = () => {
         },
         {
             title: t("avgSpending"),
-            value: `${Math.round(stats.avgExpense).toLocaleString("vi-VN")}₫`,
+            value: `${Math.round(stats.avgExpense || 0).toLocaleString(
+                "vi-VN"
+            )}₫`,
             icon: TrendingUp,
             color: "text-green-600",
             bgColor: "bg-green-50 dark:bg-green-950/20",
@@ -218,7 +220,7 @@ const Dashboard = () => {
         },
         {
             title: t("transactions"),
-            value: stats.totalExpenses.toString(),
+            value: (stats.totalExpenses || 0).toString(),
             icon: CreditCard,
             color: "text-purple-600",
             bgColor: "bg-purple-50 dark:bg-purple-950/20",
@@ -226,7 +228,9 @@ const Dashboard = () => {
         },
         {
             title: t("perCapita"),
-            value: `${Math.round(stats.avgPerPerson).toLocaleString("vi-VN")}₫`,
+            value: `${Math.round(stats.avgPerPerson || 0).toLocaleString(
+                "vi-VN"
+            )}₫`,
             icon: Target,
             color: "text-orange-600",
             bgColor: "bg-orange-50 dark:bg-orange-950/20",

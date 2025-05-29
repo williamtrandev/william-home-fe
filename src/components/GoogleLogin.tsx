@@ -119,8 +119,16 @@ const GoogleLoginButton = ({ onSuccess }: GoogleLoginProps) => {
                             (googleButton as HTMLElement).click();
                         }
                     }}
+                    onTouchStart={(e) => {
+                        e.preventDefault();
+                        const googleButton =
+                            document.querySelector('div[role="button"]');
+                        if (googleButton) {
+                            (googleButton as HTMLElement).click();
+                        }
+                    }}
                     disabled={isLoading}
-                    className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-semibold hover:from-blue-700 hover:to-purple-700 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] border-0"
+                    className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-semibold hover:from-blue-700 hover:to-purple-700 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] border-0 active:scale-[0.98]"
                 >
                     {isLoading ? (
                         <motion.div

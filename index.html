@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="/icons/icon-96x96.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#3b82f6" />
-  <meta name="description" content="Track and manage your expenses with William Calculate" />
+  <meta name="description" content="Track and manage your expenses with William's Home" />
 
   <!-- Android PWA specific meta tags -->
   <meta name="mobile-web-app-capable" content="yes" />
@@ -44,7 +44,7 @@
     media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
 
   <link rel="manifest" href="/manifest.json" />
-  <title>William Calculate</title>
+  <title>William's Home</title>
 </head>
 
 <body>
@@ -65,11 +65,72 @@
       });
     }
 
-    // Add iOS PWA install prompt
+    // Handle PWA install prompt
     let deferredPrompt;
+    const installButton = document.createElement('button');
+    installButton.style.display = 'none';
+    document.body.appendChild(installButton);
+
+    // Check if running on iOS Safari
+    const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream && !window.navigator.standalone;
+
+    if (isIOSSafari) {
+      const iosInstallGuide = document.createElement('div');
+      iosInstallGuide.style.position = 'fixed';
+      iosInstallGuide.style.bottom = '20px';
+      iosInstallGuide.style.left = '20px';
+      iosInstallGuide.style.right = '20px';
+      iosInstallGuide.style.backgroundColor = '#3b82f6';
+      iosInstallGuide.style.color = 'white';
+      iosInstallGuide.style.padding = '15px';
+      iosInstallGuide.style.borderRadius = '10px';
+      iosInstallGuide.style.zIndex = '1000';
+      iosInstallGuide.style.textAlign = 'center';
+      iosInstallGuide.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+
+      iosInstallGuide.innerHTML = `
+        <p style="margin: 0 0 10px 0; font-weight: bold;">Cài đặt ứng dụng trên iOS:</p>
+        <p style="margin: 0 0 10px 0; font-size: 14px;">1. Nhấn vào nút Share (Chia sẻ) <span style="font-size: 20px;">⎋</span></p>
+        <p style="margin: 0; font-size: 14px;">2. Chọn "Add to Home Screen" (Thêm vào Màn hình chính)</p>
+        <button onclick="this.parentElement.style.display='none'" 
+                style="position: absolute; top: 5px; right: 5px; background: none; border: none; color: white; font-size: 20px; cursor: pointer;">
+          ×
+        </button>
+      `;
+
+      document.body.appendChild(iosInstallGuide);
+    }
+
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
+
+      // Show install button in Chrome's menu
+      if (navigator.userAgent.includes('Chrome')) {
+        const menuButton = document.createElement('button');
+        menuButton.textContent = 'Install App';
+        menuButton.style.position = 'fixed';
+        menuButton.style.bottom = '20px';
+        menuButton.style.right = '20px';
+        menuButton.style.padding = '10px 20px';
+        menuButton.style.backgroundColor = '#3b82f6';
+        menuButton.style.color = 'white';
+        menuButton.style.border = 'none';
+        menuButton.style.borderRadius = '5px';
+        menuButton.style.cursor = 'pointer';
+        menuButton.style.zIndex = '1000';
+
+        menuButton.addEventListener('click', async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            deferredPrompt = null;
+          }
+        });
+
+        document.body.appendChild(menuButton);
+      }
     });
 
     // Check if running in standalone mode (PWA)

@@ -28,7 +28,7 @@ class AuthService {
             const response = await axiosInstance.post(
                 "/api/auth/login/google",
                 {
-                    accessToken: credential,
+                    credential: credential,
                     houseId: "6834a4135d5b4d1a5a661152",
                 }
             );

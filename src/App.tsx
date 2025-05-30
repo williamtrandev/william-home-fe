@@ -7,6 +7,7 @@ import AppRoutes from "@/routes";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
+import { notificationService } from "@/services/notification.service";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,11 @@ function App() {
             window.removeEventListener("unauthorized", handleUnauthorized);
         };
     }, [navigate]);
+
+    useEffect(() => {
+        // Initialize notification service
+        notificationService.initialize();
+    }, []);
 
     return (
         <QueryClientProvider client={queryClient}>

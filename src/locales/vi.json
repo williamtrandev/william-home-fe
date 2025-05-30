@@ -49,6 +49,14 @@
     "paymentNotification": "Đã tính toán xong chi tiêu",
     "toReceive": "sẽ nhận",
     "toPay": "cần trả",
+    "totalExpenses": "Tổng chi tiêu",
+    "averageExpense": "Chi tiêu trung bình",
+    "amountPerPerson": "Số tiền mỗi người",
+    "from": "Từ",
+    "to": "Đến",
+    "transferAmount": "Số tiền chuyển",
+    "needsToPay": "cần trả",
+    "willReceive": "sẽ nhận",
     "january": "Tháng 1",
     "february": "Tháng 2",
     "march": "Tháng 3",
@@ -116,5 +124,6 @@
     "joinHouseSuccess": "Tham gia nhà thành công",
     "joinHouseFailed": "Tham gia nhà thất bại",
     "rejectHouseSuccess": "Đã từ chối lời mời",
-    "rejectHouseFailed": "Từ chối lời mời thất bại"
+    "rejectHouseFailed": "Từ chối lời mời thất bại",
+    "calculating": "Đang tính"
 }

@@ -49,6 +49,14 @@
     "paymentNotification": "Payment calculation completed",
     "toReceive": "to receive",
     "toPay": "to pay",
+    "totalExpenses": "Total Expenses",
+    "averageExpense": "Average Expense",
+    "amountPerPerson": "Amount Per Person",
+    "from": "From",
+    "to": "To",
+    "transferAmount": "Transfer Amount",
+    "needsToPay": "needs to pay",
+    "willReceive": "will receive",
     "january": "January",
     "february": "February",
     "march": "March",
@@ -116,5 +124,6 @@
     "joinHouseSuccess": "Successfully joined the house",
     "joinHouseFailed": "Failed to join the house",
     "rejectHouseSuccess": "Successfully rejected the invitation",
-    "rejectHouseFailed": "Failed to reject the invitation"
+    "rejectHouseFailed": "Failed to reject the invitation",
+    "calculating": "Calculating"
 }

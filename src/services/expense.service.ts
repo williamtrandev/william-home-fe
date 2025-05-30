@@ -52,6 +52,35 @@ interface ExpenseStatistics {
     growthStats: GrowthStats;
 }
 
+interface PaymentResult {
+    totalExpenses: number;
+    averageExpense: number;
+    amountPerPerson: Array<{
+        user: {
+            _id: string;
+            email: string;
+            name: string;
+            picture: string;
+        };
+        amount: number;
+    }>;
+    transactions: Array<{
+        from: {
+            _id: string;
+            email: string;
+            name: string;
+            picture: string;
+        };
+        to: {
+            _id: string;
+            email: string;
+            name: string;
+            picture: string;
+        };
+        amount: number;
+    }>;
+}
+
 class ExpenseService {
     private readonly HOUSE_ID = "6834a4135d5b4d1a5a661152";
 
@@ -94,6 +123,18 @@ class ExpenseService {
             `/api/expenses/house/${this.HOUSE_ID}/statistics`
         );
         return response.data;
+    }
+
+    async calculatePayments(): Promise<PaymentResult> {
+        try {
+            const response = await axiosInstance.post(
+                `/api/expenses/calculate/${this.HOUSE_ID}`
+            );
+            return response.data;
+        } catch (error) {
+            console.error("Error calculating payments:", error);
+            throw error;
+        }
     }
 }
 

@@ -53,6 +53,35 @@ interface Stats {
     growthStats: GrowthStats;
 }
 
+interface PaymentResult {
+    totalExpenses: number;
+    averageExpense: number;
+    amountPerPerson: Array<{
+        user: {
+            _id: string;
+            email: string;
+            name: string;
+            picture: string;
+        };
+        amount: number;
+    }>;
+    transactions: Array<{
+        from: {
+            _id: string;
+            email: string;
+            name: string;
+            picture: string;
+        };
+        to: {
+            _id: string;
+            email: string;
+            name: string;
+            picture: string;
+        };
+        amount: number;
+    }>;
+}
+
 const Dashboard = () => {
     const { t } = useLanguage();
     const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -61,9 +90,9 @@ const Dashboard = () => {
     const [quickInput, setQuickInput] = useState("");
     const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-    const [paymentResults, setPaymentResults] = useState<
-        Record<string, number>
-    >({});
+    const [paymentResults, setPaymentResults] = useState<PaymentResult | null>(
+        null
+    );
     const [isLoading, setIsLoading] = useState(false);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
     const { user, setUser } = useAuth();
@@ -81,6 +110,7 @@ const Dashboard = () => {
             avgPerPersonGrowth: "0",
         },
     });
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
         // Check if user has avatar
@@ -106,6 +136,14 @@ const Dashboard = () => {
 
         fetchStats();
     }, [refetchTrigger]); // Refetch when expenses are updated
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     const handleExpenseSubmit = (expense: Expense) => {
         if (editingExpense) {
@@ -173,21 +211,24 @@ const Dashboard = () => {
         }
     };
 
-    const handleCalculatePayment = () => {
+    const handleCalculatePayment = async () => {
         setShowConfirmationDialog(true);
     };
 
-    const confirmCalculation = () => {
-        // Calculate payment results
-        const results: Record<string, number> = {
-            "William Nguyen": 500000,
-            "John Doe": -300000,
-            "Jane Smith": -200000,
-        };
-        setPaymentResults(results);
-        setShowConfirmationDialog(false);
-        setShowPaymentDialog(true);
-        toast.success(t("paymentNotification"));
+    const confirmCalculation = async () => {
+        try {
+            setIsLoading(true);
+            const results = await expenseService.calculatePayments();
+            setPaymentResults(results);
+            setShowConfirmationDialog(false);
+            setShowPaymentDialog(true);
+            toast.success(t("paymentNotification"));
+        } catch (error) {
+            console.error("Error calculating payments:", error);
+            toast.error(t("calculationFailed"));
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const formatGrowth = (growth: string) => {
@@ -251,6 +292,139 @@ const Dashboard = () => {
             toast.error(t("avatarUpdateFailed"));
         }
     };
+
+    const renderMobilePaymentResults = () => (
+        <div className="space-y-4">
+            {/* Summary */}
+            <div className="space-y-2">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50">
+                    <span className="text-sm text-muted-foreground">
+                        {t("totalExpenses")}
+                    </span>
+                    <span className="text-lg font-bold text-blue-600">
+                        {paymentResults?.totalExpenses?.toLocaleString("vi-VN")}
+                        ₫
+                    </span>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-green-50">
+                    <span className="text-sm text-muted-foreground">
+                        {t("averageExpense")}
+                    </span>
+                    <span className="text-lg font-bold text-green-600">
+                        {paymentResults?.averageExpense?.toLocaleString(
+                            "vi-VN"
+                        )}
+                        ₫
+                    </span>
+                </div>
+            </div>
+
+            {/* Amount Per Person */}
+            <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground px-1">
+                    {t("amountPerPerson")}
+                </h3>
+                {paymentResults?.amountPerPerson?.map((item) => (
+                    <div
+                        key={item.user._id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50"
+                    >
+                        <div className="flex items-center gap-2">
+                            <img
+                                src={item.user.picture}
+                                alt={item.user.name}
+                                className="w-6 h-6 rounded-full object-cover"
+                            />
+                            <span className="text-sm font-medium truncate max-w-[120px]">
+                                {item.user.name}
+                            </span>
+                        </div>
+                        <span
+                            className={`font-semibold text-sm ${
+                                item.amount > 0
+                                    ? "text-red-600"
+                                    : item.amount < 0
+                                    ? "text-green-600"
+                                    : "text-gray-600"
+                            }`}
+                        >
+                            {item.amount > 0
+                                ? `+${item.amount.toLocaleString("vi-VN")}₫`
+                                : `${item.amount.toLocaleString("vi-VN")}₫`}
+                        </span>
+                    </div>
+                ))}
+            </div>
+
+            {/* Transactions */}
+            <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground px-1">
+                    {t("transactions")}
+                </h3>
+                {paymentResults?.transactions?.map((transaction, index) => (
+                    <div
+                        key={index}
+                        className="p-3 rounded-lg bg-background/50 border border-border/50"
+                    >
+                        {/* From */}
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="relative">
+                                <img
+                                    src={transaction.from.picture}
+                                    alt={transaction.from.name}
+                                    className="w-6 h-6 rounded-full border border-red-500 object-cover"
+                                />
+                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-[8px] text-white">
+                                        -
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium truncate">
+                                    {transaction.from.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {t("needsToPay")}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Amount */}
+                        <div className="flex justify-center my-2">
+                            <div className="text-sm font-semibold text-blue-600 px-3 py-1 rounded-full bg-blue-50">
+                                {transaction.amount.toLocaleString("vi-VN")}₫
+                            </div>
+                        </div>
+
+                        {/* To */}
+                        <div className="flex items-center gap-2">
+                            <div className="relative">
+                                <img
+                                    src={transaction.to.picture}
+                                    alt={transaction.to.name}
+                                    className="w-6 h-6 rounded-full border border-green-500 object-cover"
+                                />
+                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span className="text-[8px] text-white">
+                                        +
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium truncate">
+                                    {transaction.to.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {t("willReceive")}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 
     return (
         <div className="container mx-auto p-6 space-y-8">
@@ -381,14 +555,25 @@ const Dashboard = () => {
                     <div className="flex justify-center gap-3 mt-4">
                         <Button
                             onClick={confirmCalculation}
+                            disabled={isLoading}
                             className="w-28 sm:w-32 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
                         >
-                            <Calculator className="w-4 h-4 mr-2" />
-                            {t("confirm")}
+                            {isLoading ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    {t("calculating")}
+                                </div>
+                            ) : (
+                                <>
+                                    <Calculator className="w-4 h-4 mr-2" />
+                                    {t("confirm")}
+                                </>
+                            )}
                         </Button>
                         <Button
                             variant="outline"
                             onClick={() => setShowConfirmationDialog(false)}
+                            disabled={isLoading}
                             className="w-28 sm:w-32"
                         >
                             {t("cancel")}
@@ -402,7 +587,7 @@ const Dashboard = () => {
                 open={showPaymentDialog}
                 onOpenChange={setShowPaymentDialog}
             >
-                <DialogContent className="w-[280px] sm:w-[400px] mx-auto rounded-lg">
+                <DialogContent className="w-[280px] sm:w-[500px] mx-auto rounded-lg">
                     <DialogHeader>
                         <DialogTitle className="text-center text-lg">
                             {t("paymentCalculation")}
@@ -411,39 +596,206 @@ const Dashboard = () => {
                             {t("paymentCalculationDescription")}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-3 mt-4">
-                        {Object.entries(paymentResults).map(
-                            ([member, amount]) => (
-                                <div
-                                    key={member}
-                                    className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-background/50 border border-border/50 hover:bg-background/80 transition-colors"
-                                >
-                                    <span className="font-medium text-sm sm:text-base">
-                                        {member}
-                                    </span>
-                                    <span
-                                        className={`font-semibold text-sm sm:text-base ${
-                                            amount > 0
-                                                ? "text-red-600"
-                                                : amount < 0
-                                                ? "text-green-600"
-                                                : "text-gray-600"
-                                        }`}
-                                    >
-                                        {amount > 0
-                                            ? `+${amount.toLocaleString(
-                                                  "vi-VN"
-                                              )}₫ (${t("toReceive")})`
-                                            : amount < 0
-                                            ? `${amount.toLocaleString(
-                                                  "vi-VN"
-                                              )}₫ (${t("toPay")})`
-                                            : "0₫"}
-                                    </span>
+
+                    {isMobile ? (
+                        renderMobilePaymentResults()
+                    ) : (
+                        <>
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-2 gap-4 mt-4">
+                                <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10">
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            {t("totalExpenses")}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-xl font-bold text-blue-600">
+                                            {paymentResults?.totalExpenses?.toLocaleString(
+                                                "vi-VN"
+                                            )}
+                                            ₫
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card className="border-0 shadow-md bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10">
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            {t("averageExpense")}
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-xl font-bold text-green-600">
+                                            {paymentResults?.averageExpense?.toLocaleString(
+                                                "vi-VN"
+                                            )}
+                                            ₫
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            {/* Amount Per Person */}
+                            <div className="mt-6">
+                                <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                                    {t("amountPerPerson")}
+                                </h3>
+                                <div className="space-y-3">
+                                    {paymentResults?.amountPerPerson?.map(
+                                        (item) => (
+                                            <div
+                                                key={item.user._id}
+                                                className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50 hover:bg-background/80 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <img
+                                                        src={item.user.picture}
+                                                        alt={item.user.name}
+                                                        className="w-8 h-8 rounded-full object-cover"
+                                                    />
+                                                    <div>
+                                                        <div className="font-medium text-sm">
+                                                            {item.user.name}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {item.user.email}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span
+                                                        className={`font-semibold text-sm ${
+                                                            item.amount > 0
+                                                                ? "text-red-600"
+                                                                : item.amount <
+                                                                  0
+                                                                ? "text-green-600"
+                                                                : "text-gray-600"
+                                                        }`}
+                                                    >
+                                                        {item.amount > 0
+                                                            ? `+${item.amount.toLocaleString(
+                                                                  "vi-VN"
+                                                              )}₫`
+                                                            : `${item.amount.toLocaleString(
+                                                                  "vi-VN"
+                                                              )}₫`}
+                                                    </span>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {item.amount > 0
+                                                            ? t("willReceive")
+                                                            : item.amount < 0
+                                                            ? t("needsToPay")
+                                                            : ""}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    )}
                                 </div>
-                            )
-                        )}
-                    </div>
+                            </div>
+
+                            {/* Transactions */}
+                            <div className="mt-6">
+                                <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                                    {t("transactions")}
+                                </h3>
+                                <div className="space-y-4">
+                                    {paymentResults?.transactions?.map(
+                                        (transaction, index) => (
+                                            <div
+                                                key={index}
+                                                className="p-4 rounded-lg bg-background/50 border border-border/50 hover:bg-background/80 transition-colors"
+                                            >
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="relative">
+                                                            <img
+                                                                src={
+                                                                    transaction
+                                                                        .from
+                                                                        .picture
+                                                                }
+                                                                alt={
+                                                                    transaction
+                                                                        .from
+                                                                        .name
+                                                                }
+                                                                className="w-10 h-10 rounded-full border-2 border-red-500 object-cover"
+                                                            />
+                                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                                                <span className="text-[10px] text-white">
+                                                                    -
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-sm font-medium">
+                                                                {
+                                                                    transaction
+                                                                        .from
+                                                                        .name
+                                                                }
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {t(
+                                                                    "needsToPay"
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div>
+                                                            <div className="text-sm font-medium text-right">
+                                                                {
+                                                                    transaction
+                                                                        .to.name
+                                                                }
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground text-right">
+                                                                {t(
+                                                                    "willReceive"
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="relative">
+                                                            <img
+                                                                src={
+                                                                    transaction
+                                                                        .to
+                                                                        .picture
+                                                                }
+                                                                alt={
+                                                                    transaction
+                                                                        .to.name
+                                                                }
+                                                                className="w-10 h-10 rounded-full border-2 border-green-500 object-cover"
+                                                            />
+                                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                                                <span className="text-[10px] text-white">
+                                                                    +
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-center gap-2 mt-2">
+                                                    <div className="h-px flex-1 bg-border/50"></div>
+                                                    <div className="text-sm font-semibold text-blue-600 px-3 py-1 rounded-full bg-blue-50">
+                                                        {transaction.amount.toLocaleString(
+                                                            "vi-VN"
+                                                        )}
+                                                        ₫
+                                                    </div>
+                                                    <div className="h-px flex-1 bg-border/50"></div>
+                                                </div>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
 

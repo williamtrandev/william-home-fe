@@ -125,5 +125,13 @@
     "joinHouseFailed": "Failed to join the house",
     "rejectHouseSuccess": "Successfully rejected the invitation",
     "rejectHouseFailed": "Failed to reject the invitation",
-    "calculating": "Calculating"
+    "calculating": "Calculating",
+    "settlements": "Settlements",
+    "settlementDetails": "Settlement Details",
+    "averagePerPerson": "Average Per Person",
+    "settledAt": "Settled At",
+    "settledBy": "Settled By",
+    "page": "Page",
+    "of": "of",
+    "viewDetails": "View Details"
 }

@@ -19,6 +19,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface ExpenseListProps {
     refetchTrigger?: number;
@@ -112,11 +113,15 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
                                 {formatDate(expense.createdAt)}
                             </p>
                             <div className="flex items-center gap-2">
-                                <img
-                                    src={expense.createdBy?.picture}
-                                    alt={expense.createdBy?.name}
-                                    className="w-6 h-6 rounded-full object-cover"
-                                />
+                                <Avatar>
+                                    <AvatarImage
+                                        className="rounded-full object-cover"
+                                        src={expense.createdBy?.picture}
+                                    />
+                                    <AvatarFallback>
+                                        {expense.createdBy?.name.charAt(0)}
+                                    </AvatarFallback>
+                                </Avatar>
                                 <span className="text-sm text-muted-foreground">
                                     {expense.createdBy?.name}
                                 </span>
@@ -181,11 +186,17 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
                             <TableCell>
                                 <div className="flex items-center gap-2">
                                     <div className="relative">
-                                        <img
-                                            src={expense.createdBy?.picture}
-                                            alt={expense.createdBy?.name}
-                                            className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10"
-                                        />
+                                        <Avatar>
+                                            <AvatarImage
+                                                className="w-8 h-8 rounded-full object-cover"
+                                                src={expense.createdBy?.picture}
+                                            />
+                                            <AvatarFallback>
+                                                {expense.createdBy?.name.charAt(
+                                                    0
+                                                )}
+                                            </AvatarFallback>
+                                        </Avatar>
                                     </div>
                                     <span className="font-medium truncate">
                                         {expense.createdBy?.name}

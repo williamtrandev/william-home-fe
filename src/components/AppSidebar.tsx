@@ -61,8 +61,8 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
         },
         {
             icon: History,
-            label: t("previous"),
-            path: "/previous",
+            label: t("settlements"),
+            path: "/settlements",
         },
         {
             icon: User,
@@ -145,7 +145,8 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
                     })}
                 </nav>
 
-                <div className="mt-8 space-y-2">
+                {/* Will do after */}
+                {/* <div className="mt-8 space-y-2">
                     <Button
                         variant="ghost"
                         className="w-full justify-start h-12 px-4 rounded-xl hover:bg-primary/10 transition-all duration-200"
@@ -183,7 +184,7 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
                             {t("help")}
                         </span>
                     </Button>
-                </div>
+                </div> */}
             </div>
 
             <div className="p-4 border-t">

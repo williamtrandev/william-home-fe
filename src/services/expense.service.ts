@@ -53,8 +53,10 @@ interface ExpenseStatistics {
 }
 
 interface PaymentResult {
+    totalAmount: number;
     totalExpenses: number;
-    averageExpense: number;
+    avgExpense: number;
+    avgPerPerson: number;
     amountPerPerson: Array<{
         user: {
             _id: string;

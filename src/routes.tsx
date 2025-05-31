@@ -8,6 +8,7 @@ import AppLayout from "@/components/layouts/AppLayout";
 import { useLanguage } from "@/contexts/LanguageContext";
 import Members from "@/pages/Members";
 import JoinHouse from "@/pages/JoinHouse";
+import Settlements from "@/pages/Settlements";
 
 function AppRoutes() {
     const { user } = useAuth();
@@ -32,19 +33,7 @@ function AppRoutes() {
                 <Route path="/members" element={<Members />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route
-                    path="/previous"
-                    element={
-                        <div className="container mx-auto p-6 space-y-8">
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                {t("previousMonths")}
-                            </h1>
-                            <p className="text-muted-foreground mt-2">
-                                {t("featureInDevelopment")}
-                            </p>
-                        </div>
-                    }
-                />
+                <Route path="/settlements" element={<Settlements />} />
                 <Route
                     path="/notifications"
                     element={

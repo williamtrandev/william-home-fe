@@ -125,5 +125,13 @@
     "joinHouseFailed": "Tham gia nhà thất bại",
     "rejectHouseSuccess": "Đã từ chối lời mời",
     "rejectHouseFailed": "Từ chối lời mời thất bại",
-    "calculating": "Đang tính"
+    "calculating": "Đang tính",
+    "settlements": "Quyết toán",
+    "settlementDetails": "Chi tiết quyết toán",
+    "averagePerPerson": "Bình quân đầu người",
+    "settledAt": "Quyết toán lúc",
+    "settledBy": "Quyết toán bởi",
+    "page": "Trang",
+    "of": "trên",
+    "viewDetails": "Xem chi tiết"
 }

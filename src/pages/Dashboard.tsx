@@ -36,6 +36,7 @@ import { expenseService } from "@/services/expense.service";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/services/auth.service";
 import AvatarSelectorModal from "@/components/auth/AvatarSelectorModal";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface GrowthStats {
     totalAmountGrowth: string;
@@ -54,8 +55,10 @@ interface Stats {
 }
 
 interface PaymentResult {
+    totalAmount: number;
     totalExpenses: number;
-    averageExpense: number;
+    avgExpense: number;
+    avgPerPerson: number;
     amountPerPerson: Array<{
         user: {
             _id: string;
@@ -302,8 +305,7 @@ const Dashboard = () => {
                         {t("totalExpenses")}
                     </span>
                     <span className="text-lg font-bold text-blue-600">
-                        {paymentResults?.totalExpenses?.toLocaleString("vi-VN")}
-                        ₫
+                        {paymentResults?.totalAmount?.toLocaleString("vi-VN")}₫
                     </span>
                 </div>
                 <div className="flex justify-between items-center p-3 rounded-lg bg-green-50">
@@ -311,10 +313,7 @@ const Dashboard = () => {
                         {t("averageExpense")}
                     </span>
                     <span className="text-lg font-bold text-green-600">
-                        {paymentResults?.averageExpense?.toLocaleString(
-                            "vi-VN"
-                        )}
-                        ₫
+                        {paymentResults?.avgExpense?.toLocaleString("vi-VN")}₫
                     </span>
                 </div>
             </div>
@@ -330,11 +329,15 @@ const Dashboard = () => {
                         className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50"
                     >
                         <div className="flex items-center gap-2">
-                            <img
-                                src={item.user.picture}
-                                alt={item.user.name}
-                                className="w-6 h-6 rounded-full object-cover"
-                            />
+                            <Avatar>
+                                <AvatarImage
+                                    className="rounded-full object-cover"
+                                    src={item.user.picture}
+                                />
+                                <AvatarFallback>
+                                    {item.user.name.charAt(0)}
+                                </AvatarFallback>
+                            </Avatar>
                             <span className="text-sm font-medium truncate max-w-[120px]">
                                 {item.user.name}
                             </span>
@@ -369,13 +372,17 @@ const Dashboard = () => {
                         {/* From */}
                         <div className="flex items-center gap-2 mb-2">
                             <div className="relative">
-                                <img
-                                    src={transaction.from.picture}
-                                    alt={transaction.from.name}
-                                    className="w-6 h-6 rounded-full border border-red-500 object-cover"
-                                />
-                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
-                                    <span className="text-[8px] text-white">
+                                <Avatar className="border-2 border-red-500">
+                                    <AvatarImage
+                                        className="rounded-full object-cover"
+                                        src={transaction.from.picture}
+                                    />
+                                    <AvatarFallback>
+                                        {transaction.from.name.charAt(0)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span className="text-[10px] text-white">
                                         -
                                     </span>
                                 </div>
@@ -400,13 +407,17 @@ const Dashboard = () => {
                         {/* To */}
                         <div className="flex items-center gap-2">
                             <div className="relative">
-                                <img
-                                    src={transaction.to.picture}
-                                    alt={transaction.to.name}
-                                    className="w-6 h-6 rounded-full border border-green-500 object-cover"
-                                />
-                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
-                                    <span className="text-[8px] text-white">
+                                <Avatar className="border-2 border-green-500">
+                                    <AvatarImage
+                                        className="rounded-full object-cover"
+                                        src={transaction.to.picture}
+                                    />
+                                    <AvatarFallback>
+                                        {transaction.to.name.charAt(0)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span className="text-[10px] text-white">
                                         +
                                     </span>
                                 </div>
@@ -587,7 +598,7 @@ const Dashboard = () => {
                 open={showPaymentDialog}
                 onOpenChange={setShowPaymentDialog}
             >
-                <DialogContent className="w-[280px] sm:w-[500px] mx-auto rounded-lg">
+                <DialogContent className="w-[350px] sm:w-[500px] mx-auto rounded-lg max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-center text-lg">
                             {t("paymentCalculation")}
@@ -611,7 +622,7 @@ const Dashboard = () => {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="text-xl font-bold text-blue-600">
-                                            {paymentResults?.totalExpenses?.toLocaleString(
+                                            {paymentResults?.totalAmount?.toLocaleString(
                                                 "vi-VN"
                                             )}
                                             ₫
@@ -626,7 +637,7 @@ const Dashboard = () => {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="text-xl font-bold text-green-600">
-                                            {paymentResults?.averageExpense?.toLocaleString(
+                                            {paymentResults?.avgExpense?.toLocaleString(
                                                 "vi-VN"
                                             )}
                                             ₫
@@ -648,11 +659,20 @@ const Dashboard = () => {
                                                 className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50 hover:bg-background/80 transition-colors"
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <img
-                                                        src={item.user.picture}
-                                                        alt={item.user.name}
-                                                        className="w-8 h-8 rounded-full object-cover"
-                                                    />
+                                                    <Avatar>
+                                                        <AvatarImage
+                                                            className="rounded-full object-cover"
+                                                            src={
+                                                                item.user
+                                                                    .picture
+                                                            }
+                                                        />
+                                                        <AvatarFallback>
+                                                            {item.user.name.charAt(
+                                                                0
+                                                            )}
+                                                        </AvatarFallback>
+                                                    </Avatar>
                                                     <div>
                                                         <div className="font-medium text-sm">
                                                             {item.user.name}
@@ -710,20 +730,22 @@ const Dashboard = () => {
                                                 <div className="flex items-center justify-between mb-3">
                                                     <div className="flex items-center gap-3">
                                                         <div className="relative">
-                                                            <img
-                                                                src={
-                                                                    transaction
-                                                                        .from
-                                                                        .picture
-                                                                }
-                                                                alt={
-                                                                    transaction
-                                                                        .from
-                                                                        .name
-                                                                }
-                                                                className="w-10 h-10 rounded-full border-2 border-red-500 object-cover"
-                                                            />
-                                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                                            <Avatar className="border-2 border-red-500">
+                                                                <AvatarImage
+                                                                    className="rounded-full object-cover"
+                                                                    src={
+                                                                        transaction
+                                                                            .from
+                                                                            .picture
+                                                                    }
+                                                                />
+                                                                <AvatarFallback>
+                                                                    {transaction.from.name.charAt(
+                                                                        0
+                                                                    )}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                                                                 <span className="text-[10px] text-white">
                                                                     -
                                                                 </span>
@@ -759,19 +781,22 @@ const Dashboard = () => {
                                                             </div>
                                                         </div>
                                                         <div className="relative">
-                                                            <img
-                                                                src={
-                                                                    transaction
-                                                                        .to
-                                                                        .picture
-                                                                }
-                                                                alt={
-                                                                    transaction
-                                                                        .to.name
-                                                                }
-                                                                className="w-10 h-10 rounded-full border-2 border-green-500 object-cover"
-                                                            />
-                                                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                                            <Avatar className="border-2 border-green-500">
+                                                                <AvatarImage
+                                                                    className="rounded-full object-cover"
+                                                                    src={
+                                                                        transaction
+                                                                            .to
+                                                                            .picture
+                                                                    }
+                                                                />
+                                                                <AvatarFallback>
+                                                                    {transaction.to.name.charAt(
+                                                                        0
+                                                                    )}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                                                                 <span className="text-[10px] text-white">
                                                                     +
                                                                 </span>

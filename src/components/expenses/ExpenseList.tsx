@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Edit2 } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -20,12 +20,22 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface ExpenseListProps {
-    refetchTrigger?: number;
+    onUpdateExpense?: () => void;
 }
 
-const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
+const ExpenseList: React.FC<ExpenseListProps> = ({ onUpdateExpense }) => {
     const { t, language } = useLanguage();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<PaginationInfo>({
@@ -36,6 +46,12 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [editingExpense, setEditingExpense] = useState<{
+        id: string;
+        purpose: string;
+        amount: number;
+    } | null>(null);
+    const [showEditDialog, setShowEditDialog] = useState(false);
     const observer = useRef<IntersectionObserver>();
     const lastExpenseRef = useCallback(
         (node: HTMLDivElement) => {
@@ -54,6 +70,17 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
         [isLoading, pagination.currentPage, pagination.totalPages]
     );
 
+    // Add notification handler
+    useNotifications(() => {
+        console.log("Notification received, refreshing expenses...");
+        fetchExpenses(pagination.currentPage);
+    });
+
+    // Initial fetch
+    useEffect(() => {
+        fetchExpenses(1);
+    }, []);
+
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768);
@@ -70,6 +97,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
                 append ? [...prev, ...response.expenses] : response.expenses
             );
             setPagination(response.pagination);
+            onUpdateExpense?.();
         } catch (error) {
             console.error("Error fetching expenses:", error);
             toast.error(t("expenseFetchFailed"));
@@ -77,10 +105,6 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
             setIsLoading(false);
         }
     };
-
-    useEffect(() => {
-        fetchExpenses(1);
-    }, [refetchTrigger]);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -96,6 +120,53 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
         }).format(amount);
     };
 
+    const formatAmountInput = (value: string) => {
+        // Remove all non-digit characters
+        const digits = value.replace(/\D/g, "");
+        // Format with thousand separator
+        return new Intl.NumberFormat("vi-VN").format(Number(digits));
+    };
+
+    const parseAmountInput = (value: string) => {
+        // Remove all non-digit characters and convert to number
+        return Number(value.replace(/\D/g, ""));
+    };
+
+    const handleEdit = (expense: Expense) => {
+        setEditingExpense({
+            id: expense._id,
+            purpose: expense.purpose,
+            amount: expense.amount,
+        });
+        setShowEditDialog(true);
+    };
+
+    const handleSave = async () => {
+        if (!editingExpense) return;
+
+        try {
+            setIsLoading(true);
+            await expenseService.updateExpense(editingExpense.id, {
+                purpose: editingExpense.purpose,
+                amount: editingExpense.amount,
+            });
+            toast.success(t("expenseUpdated"));
+            fetchExpenses(pagination.currentPage);
+            setShowEditDialog(false);
+        } catch (error) {
+            console.error("Error updating expense:", error);
+            toast.error(t("expenseUpdateFailed"));
+        } finally {
+            setIsLoading(false);
+            setEditingExpense(null);
+        }
+    };
+
+    const handleCancel = () => {
+        setEditingExpense(null);
+        setShowEditDialog(false);
+    };
+
     const renderMobileView = () => (
         <div className="space-y-4">
             {expenses.map((expense, index) => (
@@ -107,7 +178,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
                     className="bg-card rounded-lg p-4 shadow-md hover:shadow-lg transition-all duration-300"
                 >
                     <div className="flex items-start justify-between">
-                        <div className="space-y-1">
+                        <div className="space-y-1 flex-1">
                             <h3 className="font-semibold">{expense.purpose}</h3>
                             <p className="text-sm text-muted-foreground">
                                 {formatDate(expense.createdAt)}
@@ -127,7 +198,15 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
                                 </span>
                             </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right ml-4">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(expense)}
+                                className="mb-2"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </Button>
                             <p className="text-lg font-bold text-primary">
                                 {formatAmount(expense.amount)}
                             </p>
@@ -201,6 +280,14 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
                                     <span className="font-medium truncate">
                                         {expense.createdBy?.name}
                                     </span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleEdit(expense)}
+                                        className="ml-auto"
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             </TableCell>
                         </TableRow>
@@ -261,6 +348,92 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
             ) : (
                 renderTabletView()
             )}
+
+            {/* Edit Dialog */}
+            <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+                <DialogContent className="w-[280px] sm:w-[400px] mx-auto rounded-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-center text-lg">
+                            {t("editExpense")}
+                        </DialogTitle>
+                        <DialogDescription className="text-center text-sm">
+                            {t("editExpenseDescription")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="purpose">{t("purpose")}</Label>
+                            <Input
+                                id="purpose"
+                                value={editingExpense?.purpose || ""}
+                                onChange={(e) =>
+                                    setEditingExpense(
+                                        editingExpense
+                                            ? {
+                                                  ...editingExpense,
+                                                  purpose: e.target.value,
+                                              }
+                                            : null
+                                    )
+                                }
+                                className="bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="amount">{t("amount")}</Label>
+                            <Input
+                                id="amount"
+                                type="text"
+                                inputMode="numeric"
+                                value={
+                                    editingExpense?.amount
+                                        ? formatAmountInput(
+                                              editingExpense.amount.toString()
+                                          )
+                                        : ""
+                                }
+                                onChange={(e) =>
+                                    setEditingExpense(
+                                        editingExpense
+                                            ? {
+                                                  ...editingExpense,
+                                                  amount: parseAmountInput(
+                                                      e.target.value
+                                                  ),
+                                              }
+                                            : null
+                                    )
+                                }
+                                className="bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                            />
+                        </div>
+                        <div className="flex justify-center gap-3 mt-4">
+                            <Button
+                                variant="outline"
+                                onClick={handleCancel}
+                                disabled={isLoading}
+                                className="w-28 sm:w-32"
+                            >
+                                {t("cancel")}
+                            </Button>
+                            <Button
+                                onClick={handleSave}
+                                disabled={isLoading}
+                                className="w-28 sm:w-32 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                            >
+                                {isLoading ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        {t("saving")}
+                                    </div>
+                                ) : (
+                                    t("save")
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

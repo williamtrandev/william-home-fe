@@ -3,7 +3,19 @@ import { notificationService } from "@/services/notification.service";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-export const useNotifications = () => {
+// Create an event emitter
+const notificationEvents = {
+    listeners: new Set<() => void>(),
+    subscribe(callback: () => void) {
+        this.listeners.add(callback);
+        return () => this.listeners.delete(callback);
+    },
+    notify() {
+        this.listeners.forEach((callback) => callback());
+    },
+};
+
+export const useNotifications = (onExpenseUpdate?: () => void) => {
     const { t } = useLanguage();
     const [isPermissionGranted, setIsPermissionGranted] = useState(false);
 
@@ -29,13 +41,23 @@ export const useNotifications = () => {
 
         // Listen for incoming messages
         notificationService.onMessage((payload) => {
+            console.log("Notification received in useNotifications:", payload);
             const { notification } = payload;
             if (notification) {
                 toast(notification.title, {
                     description: notification.body,
                 });
+
+                // Notify all listeners
+                notificationEvents.notify();
             }
         });
+
+        // Subscribe to events if callback provided
+        let unsubscribe: (() => void) | undefined;
+        if (onExpenseUpdate) {
+            unsubscribe = notificationEvents.subscribe(onExpenseUpdate);
+        }
 
         // Check permission status periodically
         const checkPermission = () => {
@@ -49,8 +71,11 @@ export const useNotifications = () => {
 
         return () => {
             clearInterval(intervalId);
+            if (unsubscribe) {
+                unsubscribe();
+            }
         };
-    }, []);
+    }, [onExpenseUpdate]);
 
     const requestPermission = async () => {
         try {

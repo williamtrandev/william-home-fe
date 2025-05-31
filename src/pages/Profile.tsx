@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Camera, Mail, User, Shield, Save, Upload } from "lucide-react";
+import { Camera, Mail, User, Save, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
 import { useLocation } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 // Function to get avatar options based on picture URL
 const getAvatarOptions = (pictureUrl: string) => {
@@ -165,21 +166,30 @@ const Profile = () => {
                                     {formData.email}
                                 </p>
                                 <div className="flex items-center justify-center gap-2 mt-2">
-                                    <Shield className="w-4 h-4 text-primary" />
-                                    <span className="text-sm font-medium text-primary capitalize">
-                                        {authUser?.role || "user"}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4 pt-4 border-t">
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-primary">
-                                        15
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {t("expenses")}
-                                    </div>
+                                    <Badge
+                                        variant={
+                                            authUser?.currentHouseRole ===
+                                            "OWNER"
+                                                ? "default"
+                                                : "secondary"
+                                        }
+                                        className={`capitalize ${
+                                            authUser?.currentHouseRole ===
+                                            "OWNER"
+                                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                                                : "bg-muted text-muted-foreground"
+                                        }`}
+                                    >
+                                        {authUser?.currentHouseRole ===
+                                        "OWNER" ? (
+                                            <div className="flex items-center gap-1">
+                                                <Crown className="w-3 h-3" />
+                                                {t("owner")}
+                                            </div>
+                                        ) : (
+                                            t("member")
+                                        )}
+                                    </Badge>
                                 </div>
                             </div>
                         </CardContent>

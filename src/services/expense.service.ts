@@ -138,6 +138,25 @@ class ExpenseService {
             throw error;
         }
     }
+
+    async updateExpense(
+        expenseId: string,
+        data: { purpose: string; amount: number }
+    ) {
+        try {
+            const response = await axiosInstance.put(
+                `/api/expenses/${expenseId}`,
+                {
+                    houseId: this.HOUSE_ID,
+                    ...data,
+                }
+            );
+            return response.data;
+        } catch (error) {
+            console.error("Error updating expense:", error);
+            throw error;
+        }
+    }
 }
 
 export const expenseService = new ExpenseService();

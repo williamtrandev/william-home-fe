@@ -37,6 +37,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/services/auth.service";
 import AvatarSelectorModal from "@/components/auth/AvatarSelectorModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface GrowthStats {
     totalAmountGrowth: string;
@@ -115,6 +116,24 @@ const Dashboard = () => {
     });
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+    const fetchStats = async () => {
+        try {
+            const response = await expenseService.getStatistics();
+            setStats(response);
+        } catch (error) {
+            console.error("Error fetching statistics:", error);
+            toast.error(t("statsFetchFailed"));
+        }
+    };
+
+    // Add notification handler
+    useNotifications(() => {
+        // Refresh both expenses and stats
+        // setRefetchTrigger((prev) => prev + 1);
+
+        fetchStats();
+    });
+
     useEffect(() => {
         // Check if user has avatar
         if (user && !user.picture) {
@@ -127,18 +146,8 @@ const Dashboard = () => {
     }, [user]);
 
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const response = await expenseService.getStatistics();
-                setStats(response);
-            } catch (error) {
-                console.error("Error fetching statistics:", error);
-                toast.error(t("statsFetchFailed"));
-            }
-        };
-
         fetchStats();
-    }, [refetchTrigger]); // Refetch when expenses are updated
+    }, []);
 
     useEffect(() => {
         const handleResize = () => {
@@ -544,7 +553,9 @@ const Dashboard = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ExpenseList refetchTrigger={refetchTrigger} />
+                        <ExpenseList onUpdateExpense={() => {
+                            fetchStats();
+                        }} />
                     </CardContent>
                 </Card>
             </motion.div>

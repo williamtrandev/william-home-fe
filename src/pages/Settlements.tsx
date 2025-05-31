@@ -112,198 +112,239 @@ const Settlements = () => {
 
             {/* Desktop Table View */}
             <div className="hidden md:block">
-                <Card>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>{t("settledAt")}</TableHead>
-                                <TableHead>{t("expenses")}</TableHead>
-                                <TableHead>{t("settledBy")}</TableHead>
-                                <TableHead className="text-right">
-                                    {t("totalExpenses")}
-                                </TableHead>
-                                <TableHead className="text-right">
-                                    {t("viewDetails")}
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {settlements.map((settlement) => (
-                                <TableRow
-                                    key={settlement._id}
-                                    className="hover:bg-muted/50 cursor-pointer"
-                                >
-                                    <TableCell>
-                                        <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/20 border border-primary/10 text-primary">
-                                            <span className="text-sm font-medium">
-                                                {formatDate(
-                                                    settlement.createdAt
-                                                )}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant="secondary"
-                                            className="px-3 py-1"
-                                        >
-                                            <CreditCard className="h-4 w-4 mr-2" />
-                                            {settlement.totalExpenses}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {settlement.createdBy && (
-                                            <div className="flex items-center gap-2">
-                                                <div className="relative">
-                                                    <Avatar>
-                                                        <AvatarImage
-                                                            className="rounded-full object-cover"
-                                                            src={
-                                                                settlement
-                                                                    .createdBy
-                                                                    .picture
-                                                            }
-                                                        />
-                                                        <AvatarFallback>
-                                                            {settlement.createdBy.name.charAt(
-                                                                0
-                                                            )}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                </div>
+                {settlements.length === 0 ? (
+                    <Card>
+                        <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                            <Receipt className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                            <h3 className="text-lg font-semibold mb-2">
+                                {t("noSettlements")}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                                {t("noSettlementsDescription")}
+                            </p>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>{t("settledAt")}</TableHead>
+                                    <TableHead>{t("expenses")}</TableHead>
+                                    <TableHead>{t("settledBy")}</TableHead>
+                                    <TableHead className="text-right">
+                                        {t("totalExpenses")}
+                                    </TableHead>
+                                    <TableHead className="text-right">
+                                        {t("viewDetails")}
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {settlements.map((settlement) => (
+                                    <TableRow
+                                        key={settlement._id}
+                                        className="hover:bg-muted/50 cursor-pointer"
+                                    >
+                                        <TableCell>
+                                            <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/20 border border-primary/10 text-primary">
                                                 <span className="text-sm font-medium">
-                                                    {settlement.createdBy.name}
+                                                    {formatDate(
+                                                        settlement.createdAt
+                                                    )}
                                                 </span>
                                             </div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right font-bold text-primary">
-                                        {formatCurrency(settlement.totalAmount)}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() =>
-                                                fetchSettlementDetail(
-                                                    settlement._id
-                                                )
-                                            }
-                                            title={t("viewDetails")}
-                                        >
-                                            <Eye className="h-4 w-4" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </Card>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant="secondary"
+                                                className="px-3 py-1"
+                                            >
+                                                <CreditCard className="h-4 w-4 mr-2" />
+                                                {settlement.totalExpenses}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {settlement.createdBy && (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative">
+                                                        <Avatar>
+                                                            <AvatarImage
+                                                                className="rounded-full object-cover"
+                                                                src={
+                                                                    settlement
+                                                                        .createdBy
+                                                                        .picture
+                                                                }
+                                                            />
+                                                            <AvatarFallback>
+                                                                {settlement.createdBy.name.charAt(
+                                                                    0
+                                                                )}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    </div>
+                                                    <span className="text-sm font-medium">
+                                                        {
+                                                            settlement.createdBy
+                                                                .name
+                                                        }
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-primary">
+                                            {formatCurrency(
+                                                settlement.totalAmount
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() =>
+                                                    fetchSettlementDetail(
+                                                        settlement._id
+                                                    )
+                                                }
+                                                title={t("viewDetails")}
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Card>
+                )}
             </div>
 
             {/* Mobile Card View */}
             <div className="md:hidden grid gap-4">
-                {settlements.map((settlement) => (
-                    <Card
-                        key={settlement._id}
-                        className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-primary/20"
-                        onClick={() => fetchSettlementDetail(settlement._id)}
-                    >
-                        <CardContent className="p-4">
-                            <div className="space-y-3">
-                                {/* Header */}
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className="p-1.5 bg-primary/10 rounded-lg">
-                                            <Receipt className="h-4 w-4 text-primary" />
-                                        </div>
-                                        <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/20 border border-primary/10 text-primary">
-                                            <span className="text-xs font-medium">
-                                                {formatDate(
-                                                    settlement.createdAt
-                                                )}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <Badge
-                                        variant="secondary"
-                                        className="px-2 py-0.5"
-                                    >
-                                        <CreditCard className="h-3 w-3 mr-1" />
-                                        {settlement.totalExpenses}
-                                    </Badge>
-                                </div>
-
-                                {/* Amount */}
-                                <div className="flex items-center justify-between">
-                                    <div className="text-sm text-muted-foreground">
-                                        {t("totalExpenses")}
-                                    </div>
-                                    <div className="text-lg font-bold text-primary">
-                                        {formatCurrency(settlement.totalAmount)}
-                                    </div>
-                                </div>
-
-                                {/* Creator */}
-                                {settlement.createdBy && (
-                                    <div className="flex items-center justify-center gap-2 pt-2 border-t border-border">
-                                        <div className="relative">
-                                            <Avatar>
-                                                <AvatarImage
-                                                    className="rounded-full object-cover"
-                                                    src={
-                                                        settlement.createdBy
-                                                            .picture
-                                                    }
-                                                />
-                                                <AvatarFallback>
-                                                    {settlement.createdBy.name.charAt(
-                                                        0
-                                                    )}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                        </div>
-                                        <div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {t("settledBy")}
-                                            </div>
-                                            <div className="text-sm font-medium">
-                                                {settlement.createdBy.name}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                {settlements.length === 0 ? (
+                    <Card>
+                        <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+                            <Receipt className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                            <h3 className="text-base font-semibold mb-1">
+                                {t("noSettlements")}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                                {t("noSettlementsDescription")}
+                            </p>
                         </CardContent>
                     </Card>
-                ))}
+                ) : (
+                    settlements.map((settlement) => (
+                        <Card
+                            key={settlement._id}
+                            className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-primary/20"
+                            onClick={() =>
+                                fetchSettlementDetail(settlement._id)
+                            }
+                        >
+                            <CardContent className="p-4">
+                                <div className="space-y-3">
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-1.5 bg-primary/10 rounded-lg">
+                                                <Receipt className="h-4 w-4 text-primary" />
+                                            </div>
+                                            <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/20 border border-primary/10 text-primary">
+                                                <span className="text-xs font-medium">
+                                                    {formatDate(
+                                                        settlement.createdAt
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <Badge
+                                            variant="secondary"
+                                            className="px-2 py-0.5"
+                                        >
+                                            <CreditCard className="h-3 w-3 mr-1" />
+                                            {settlement.totalExpenses}
+                                        </Badge>
+                                    </div>
+
+                                    {/* Amount */}
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-sm text-muted-foreground">
+                                            {t("totalExpenses")}
+                                        </div>
+                                        <div className="text-lg font-bold text-primary">
+                                            {formatCurrency(
+                                                settlement.totalAmount
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Creator */}
+                                    {settlement.createdBy && (
+                                        <div className="flex items-center justify-center gap-2 pt-2 border-t border-border">
+                                            <div className="relative">
+                                                <Avatar>
+                                                    <AvatarImage
+                                                        className="rounded-full object-cover"
+                                                        src={
+                                                            settlement.createdBy
+                                                                .picture
+                                                        }
+                                                    />
+                                                    <AvatarFallback>
+                                                        {settlement.createdBy.name.charAt(
+                                                            0
+                                                        )}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {t("settledBy")}
+                                                </div>
+                                                <div className="text-sm font-medium">
+                                                    {settlement.createdBy.name}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
             </div>
 
-            <div className="flex justify-center items-center space-x-2 mt-8">
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                    }
-                    disabled={currentPage === 1}
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm">
-                    {t("page")} {currentPage} {t("of")} {totalPages}
-                </span>
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                    }
-                    disabled={currentPage === totalPages}
-                >
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            </div>
+            {settlements.length > 0 && (
+                <div className="flex justify-center items-center space-x-2 mt-8">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() =>
+                            setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        disabled={currentPage === 1}
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm">
+                        {t("page")} {currentPage} {t("of")} {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() =>
+                            setCurrentPage((prev) =>
+                                Math.min(prev + 1, totalPages)
+                            )
+                        }
+                        disabled={currentPage === totalPages}
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
 
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                 <DialogContent className="w-[350px] sm:w-[500px] mx-auto rounded-lg max-h-[85vh] overflow-y-auto">

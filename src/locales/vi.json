@@ -133,5 +133,7 @@
     "settledBy": "Quyết toán bởi",
     "page": "Trang",
     "of": "trên",
-    "viewDetails": "Xem chi tiết"
+    "viewDetails": "Xem chi tiết",
+    "noSettlements": "Chưa có quyết toán nào",
+    "noSettlementsDescription": "Hãy thêm chi tiêu và tính toán để tạo quyết toán"
 }

@@ -133,5 +133,7 @@
     "settledBy": "Settled By",
     "page": "Page",
     "of": "of",
-    "viewDetails": "View Details"
+    "viewDetails": "View Details",
+    "noSettlements": "No Settlements Yet",
+    "noSettlementsDescription": "Add expenses and calculate to create settlements"
 }

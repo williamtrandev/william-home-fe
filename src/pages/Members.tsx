@@ -1,37 +1,52 @@
-import { useState, useEffect } from "react";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { useAuth } from "@/contexts/AuthContext";
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { Send, UserPlus, Mail, Users } from "lucide-react";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { Search, UserPlus, Mail, Shield, Crown } from "lucide-react";
+import { toast } from "sonner";
 import { houseService, type Member } from "@/services/house.service";
+import { useLocation } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { useTheme } from "@/contexts/ThemeContext";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+
+const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+};
 
 const Members = () => {
     const { t } = useLanguage();
-    const { user } = useAuth();
-    const [email, setEmail] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
+    const { theme } = useTheme();
     const [members, setMembers] = useState<Member[]>([]);
-    const [isLoadingMembers, setIsLoadingMembers] = useState(true);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [showInviteDialog, setShowInviteDialog] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState("");
+    const [isInviting, setIsInviting] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         fetchMembers();
@@ -39,190 +54,294 @@ const Members = () => {
 
     const fetchMembers = async () => {
         try {
-            setIsLoadingMembers(true);
             const response = await houseService.getMembers();
             setMembers(response.members);
-        } catch (error: any) {
-            const errorMessage =
-                error.response?.data?.error?.[t("language")] ||
-                t("membersFetchFailed");
-            toast.error(errorMessage);
+        } catch (error) {
+            console.error("Error fetching members:", error);
+            toast.error(t("membersFetchFailed"));
         } finally {
-            setIsLoadingMembers(false);
+            setLoading(false);
         }
     };
 
-    const handleSendInvitation = async () => {
-        if (!email) {
+    const handleInvite = async () => {
+        if (!inviteEmail) {
             toast.error(t("emailRequired"));
             return;
         }
 
         try {
-            setIsLoading(true);
+            setIsInviting(true);
             await houseService.inviteMember({
-                email,
+                email: inviteEmail,
                 houseId: houseService.getHouseId(),
             });
             toast.success(t("invitationSent"));
-            setEmail("");
+            setInviteEmail("");
+            setShowInviteDialog(false);
         } catch (error: any) {
             const errorMessage =
                 error.response?.data?.error?.[t("language")] ||
                 t("invitationFailed");
             toast.error(errorMessage);
         } finally {
-            setIsLoading(false);
+            setIsInviting(false);
         }
     };
 
-    const getRoleBadge = (role: string) => {
-        const isOwner = role === "OWNER";
+    const filteredMembers = members.filter(
+        (member) =>
+            member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            member.email.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (loading) {
         return (
-            <Badge
-                variant={isOwner ? "default" : "secondary"}
-                className={cn(
-                    "capitalize",
-                    isOwner
-                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                        : "bg-muted"
-                )}
-            >
-                {t(role.toLowerCase())}
-            </Badge>
+            <div className="container mx-auto p-6 space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <div className="grid gap-4">
+                    {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-32 w-full" />
+                    ))}
+                </div>
+            </div>
         );
-    };
+    }
 
     return (
-        <div className="container mx-auto p-6 space-y-8">
-            <div className="flex items-center justify-between">
-                <div className="space-y-1">
+        <div className="container mx-auto p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                <div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        {t("manageMembers")}
+                        {t("members")}
                     </h1>
-                    <p className="text-muted-foreground">
-                        {t("membersDescription")}
+                    <p className="text-muted-foreground mt-2">
+                        {t("memberDetails")}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-primary" />
-                    <span className="text-sm text-muted-foreground">
-                        {members.length} {t("members")}
-                    </span>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <Input
+                            placeholder={t("searchMembers")}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 w-full sm:w-[300px] bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300"
+                        />
+                    </div>
+                    <Button
+                        onClick={() => setShowInviteDialog(true)}
+                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+                    >
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        {t("inviteMember")}
+                    </Button>
                 </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-                {/* Member List */}
-                <Card className="shadow-lg">
-                    <CardHeader className="border-b">
-                        <CardTitle className="flex items-center gap-2">
-                            <Users className="w-5 h-5 text-primary" />
-                            {t("currentMembers")}
+            {/* Desktop Table View */}
+            {!isMobile && (
+                <Card className="shadow-lg border-0 gradient-card">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                            {t("memberList")}
                         </CardTitle>
-                        <CardDescription>
-                            {t("membersDescription")}
-                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-0">
-                        {isLoadingMembers ? (
-                            <div className="flex items-center justify-center p-8">
-                                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                            </div>
-                        ) : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>{t("member")}</TableHead>
-                                        <TableHead className="text-right">
+                    <CardContent>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-border/50">
+                                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
+                                            {t("member")}
+                                        </th>
+                                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
+                                            {t("email")}
+                                        </th>
+                                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
                                             {t("role")}
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {members.map((member) => (
-                                        <TableRow key={member.id}>
-                                            <TableCell>
+                                        </th>
+                                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
+                                            {t("joinedAt")}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredMembers.map((member) => (
+                                        <tr
+                                            key={member.id}
+                                            className="border-b border-border/50 hover:bg-background/50 transition-colors"
+                                        >
+                                            <td className="py-3 px-4">
                                                 <div className="flex items-center gap-3">
                                                     <Avatar>
                                                         <AvatarImage
-                                                            className="rounded-full object-cover"
                                                             src={member.picture}
+                                                            alt={member.name}
+                                                            className="object-cover"
                                                         />
-                                                        <AvatarFallback>
+                                                        <AvatarFallback className="gradient-primary text-white">
                                                             {member.name.charAt(
                                                                 0
                                                             )}
                                                         </AvatarFallback>
                                                     </Avatar>
-                                                    <div>
-                                                        <div className="font-medium">
-                                                            {member.name}
-                                                        </div>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            {member.email}
-                                                        </div>
-                                                    </div>
+                                                    <span className="font-medium">
+                                                        {member.name}
+                                                    </span>
                                                 </div>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {getRoleBadge(member.role)}
-                                            </TableCell>
-                                        </TableRow>
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                    <Mail className="w-4 h-4" />
+                                                    {member.email}
+                                                </div>
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <Badge
+                                                    variant={
+                                                        member.role === "OWNER"
+                                                            ? "default"
+                                                            : "secondary"
+                                                    }
+                                                    className={`capitalize ${
+                                                        member.role === "OWNER"
+                                                            ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                                                            : "bg-muted text-muted-foreground"
+                                                    }`}
+                                                >
+                                                    {member.role === "OWNER" ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <Crown className="w-3 h-3" />
+                                                            {t("owner")}
+                                                        </div>
+                                                    ) : (
+                                                        t("member")
+                                                    )}
+                                                </Badge>
+                                            </td>
+                                            <td className="py-3 px-4 text-muted-foreground">
+                                                {formatDate(member.joinedAt)}
+                                            </td>
+                                        </tr>
                                     ))}
-                                </TableBody>
-                            </Table>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Invite New Member */}
-                <Card className="shadow-lg">
-                    <CardHeader className="border-b">
-                        <CardTitle className="flex items-center gap-2">
-                            <UserPlus className="w-5 h-5 text-primary" />
-                            {t("inviteNewMember")}
-                        </CardTitle>
-                        <CardDescription>
-                            {t("inviteDescription")}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-2">
-                                    {t("inviteByEmail")}
-                                </label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        type="email"
-                                        placeholder={t("enterEmail")}
-                                        value={email}
-                                        onChange={(e) =>
-                                            setEmail(e.target.value)
-                                        }
-                                        className="flex-1"
-                                    />
-                                    <Button
-                                        onClick={handleSendInvitation}
-                                        disabled={isLoading}
-                                        className="min-w-[120px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                                    >
-                                        {isLoading ? (
-                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        ) : (
-                                            <>
-                                                <Send className="w-4 h-4 mr-2" />
-                                                {t("send")}
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                            </div>
+                                </tbody>
+                            </table>
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            )}
+
+            {/* Mobile Card View */}
+            {isMobile && (
+                <div className="space-y-4">
+                    {filteredMembers.map((member) => (
+                        <Card
+                            key={member.id}
+                            className="shadow-lg border-0 gradient-card"
+                        >
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <Avatar>
+                                        <AvatarImage
+                                            src={member.picture}
+                                            alt={member.name}
+                                            className="object-cover"
+                                        />
+                                        <AvatarFallback className="gradient-primary text-white">
+                                            {member.name.charAt(0)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <div className="font-medium">
+                                            {member.name}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Mail className="w-3 h-3" />
+                                            {member.email}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <Badge
+                                        variant={
+                                            member.role === "OWNER"
+                                                ? "default"
+                                                : "secondary"
+                                        }
+                                        className={`capitalize ${
+                                            member.role === "OWNER"
+                                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
+                                                : "bg-muted text-muted-foreground"
+                                        }`}
+                                    >
+                                        {member.role === "OWNER" ? (
+                                            <div className="flex items-center gap-1">
+                                                <Crown className="w-3 h-3" />
+                                                {t("owner")}
+                                            </div>
+                                        ) : (
+                                            t("member")
+                                        )}
+                                    </Badge>
+                                    <span className="text-sm text-muted-foreground">
+                                        {formatDate(member.joinedAt)}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            )}
+
+            {/* Invite Dialog */}
+            <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+                <DialogContent className="w-[280px] sm:w-[400px] mx-auto rounded-lg">
+                    <DialogHeader>
+                        <DialogTitle>{t("inviteNewMember")}</DialogTitle>
+                        <DialogDescription>
+                            {t("inviteDescription")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                                {t("inviteByEmail")}
+                            </label>
+                            <Input
+                                type="email"
+                                placeholder={t("enterEmail")}
+                                value={inviteEmail}
+                                onChange={(e) => setInviteEmail(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowInviteDialog(false)}
+                                disabled={isInviting}
+                            >
+                                {t("cancel")}
+                            </Button>
+                            <Button
+                                onClick={handleInvite}
+                                disabled={isInviting}
+                                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                            >
+                                {isInviting ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <UserPlus className="w-4 h-4 mr-2" />
+                                        {t("send")}
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

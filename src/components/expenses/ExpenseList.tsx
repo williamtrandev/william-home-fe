@@ -188,7 +188,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ refetchTrigger = 0 }) => {
                                     <div className="relative">
                                         <Avatar>
                                             <AvatarImage
-                                                className="w-8 h-8 rounded-full object-cover"
+                                                className="rounded-full object-cover"
                                                 src={expense.createdBy?.picture}
                                             />
                                             <AvatarFallback>

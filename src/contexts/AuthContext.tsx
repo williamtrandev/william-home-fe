@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { notificationService } from "@/services/notification.service";
+import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface User {
     id: string;
@@ -12,7 +15,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     setUser: React.Dispatch<React.SetStateAction<User | null>>;
-    logout: () => void;
+    logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,11 +28,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return storedUser ? JSON.parse(storedUser) : null;
     });
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
-    const logout = () => {
-        localStorage.removeItem("user");
-        setUser(null);
-        navigate("/login");
+    const logout = async () => {
+        try {
+            // Remove notification token
+            await notificationService.handleLogout();
+
+            // Remove user data
+            localStorage.removeItem("user");
+            setUser(null);
+
+            // Show success message
+            toast.success(t("logoutSuccess"));
+
+            // Navigate to login page
+            navigate("/login");
+        } catch (error) {
+            console.error("Logout error:", error);
+            toast.error(t("logoutFailed"));
+        }
     };
 
     return (

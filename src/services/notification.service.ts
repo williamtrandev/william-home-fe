@@ -1,105 +1,172 @@
+import axiosInstance from "@/lib/axios";
+import {
+    requestNotificationPermission,
+    onMessageListener,
+    getToken,
+} from "@/lib/firebase";
+
+const TOKEN_KEY = "fcm_token";
+
+interface DeviceInfo {
+    userAgent: string;
+    platform: string;
+    timestamp: number;
+}
+
 class NotificationService {
-    private static instance: NotificationService;
-    private swRegistration: ServiceWorkerRegistration | null = null;
+    private baseUrl = "/api/notifications";
 
-    private constructor() {}
-
-    static getInstance(): NotificationService {
-        if (!NotificationService.instance) {
-            NotificationService.instance = new NotificationService();
-        }
-        return NotificationService.instance;
+    private getStoredToken(): string | null {
+        return localStorage.getItem(TOKEN_KEY);
     }
 
-    async initialize() {
-        if ("serviceWorker" in navigator && "PushManager" in window) {
-            try {
-                this.swRegistration = await navigator.serviceWorker.register(
-                    "/sw.js"
-                );
-                console.log("Service Worker registered successfully");
-            } catch (error) {
-                console.error("Service Worker registration failed:", error);
-            }
-        }
+    private setStoredToken(token: string) {
+        localStorage.setItem(TOKEN_KEY, token);
     }
 
-    async requestNotificationPermission(): Promise<boolean> {
+    private removeStoredToken() {
+        localStorage.removeItem(TOKEN_KEY);
+    }
+
+    private getDeviceInfo(): DeviceInfo {
+        return {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            timestamp: Date.now(),
+        };
+    }
+
+    async requestPermission() {
         try {
-            const permission = await Notification.requestPermission();
-            return permission === "granted";
+            // Check if we already have a token
+            const storedToken = this.getStoredToken();
+            if (storedToken) {
+                return storedToken;
+            }
+
+            // Request permission and get token directly from Firebase
+            const token = await getToken();
+            if (token) {
+                // Save token to server with device info
+                await this.saveToken(token);
+                this.setStoredToken(token);
+                return token;
+            }
+            throw new Error("Failed to get FCM token");
         } catch (error) {
             console.error("Error requesting notification permission:", error);
+            throw error;
+        }
+    }
+
+    async saveToken(token: string) {
+        try {
+            const deviceInfo = this.getDeviceInfo();
+            await axiosInstance.post(`${this.baseUrl}/token`, {
+                fcmToken: token,
+                deviceInfo,
+            });
+        } catch (error) {
+            console.error("Error saving notification token:", error);
+            throw error;
+        }
+    }
+
+    async removeToken(token: string) {
+        try {
+            await axiosInstance.delete(`${this.baseUrl}/token/${token}`);
+            this.removeStoredToken();
+        } catch (error) {
+            console.error("Error removing notification token:", error);
+            throw error;
+        }
+    }
+
+    async getNotifications(page = 1) {
+        try {
+            const response = await axiosInstance.get(
+                `${this.baseUrl}?page=${page}`
+            );
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching notifications:", error);
+            throw error;
+        }
+    }
+
+    async markAsRead(notificationId: string) {
+        try {
+            await axiosInstance.patch(`${this.baseUrl}/${notificationId}/read`);
+        } catch (error) {
+            console.error("Error marking notification as read:", error);
+            throw error;
+        }
+    }
+
+    async markAllAsRead() {
+        try {
+            await axiosInstance.patch(`${this.baseUrl}/read-all`);
+        } catch (error) {
+            console.error("Error marking all notifications as read:", error);
+            throw error;
+        }
+    }
+
+    onMessage(callback: (payload: any) => void) {
+        onMessageListener().then((payload: any) => {
+            callback(payload);
+        });
+    }
+
+    // Check if token is valid and refresh if needed
+    async validateToken() {
+        const storedToken = this.getStoredToken();
+        if (!storedToken) {
             return false;
         }
-    }
 
-    async subscribeToPushNotifications(
-        userId: string
-    ): Promise<PushSubscription | null> {
         try {
-            if (!this.swRegistration) {
-                throw new Error("Service Worker not registered");
+            // Get new token from Firebase
+            const newToken = await getToken();
+            if (newToken && newToken !== storedToken) {
+                // Token has changed, update it with device info
+                await this.saveToken(newToken);
+                this.setStoredToken(newToken);
             }
-
-            const subscription =
-                await this.swRegistration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
-                });
-
-            // Send subscription to backend
-            await fetch("/api/notifications/subscribe", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    userId,
-                    subscription,
-                }),
-            });
-
-            return subscription;
-        } catch (error) {
-            console.error("Error subscribing to push notifications:", error);
-            return null;
-        }
-    }
-
-    async unsubscribeFromPushNotifications(userId: string): Promise<boolean> {
-        try {
-            if (!this.swRegistration) {
-                throw new Error("Service Worker not registered");
-            }
-
-            const subscription =
-                await this.swRegistration.pushManager.getSubscription();
-            if (subscription) {
-                await subscription.unsubscribe();
-
-                // Notify backend about unsubscribe
-                await fetch("/api/notifications/unsubscribe", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        userId,
-                        subscription,
-                    }),
-                });
-            }
-
             return true;
         } catch (error) {
-            console.error(
-                "Error unsubscribing from push notifications:",
-                error
-            );
+            // If token is invalid, remove it
+            this.removeStoredToken();
             return false;
+        }
+    }
+
+    // Remove token when user logs out
+    async handleLogout() {
+        const token = this.getStoredToken();
+        if (token) {
+            try {
+                await this.removeToken(token);
+            } catch (error) {
+                console.error("Error removing token on logout:", error);
+            }
+        }
+    }
+
+    // Remove token when user revokes notification permission
+    async handlePermissionRevoked() {
+        const token = this.getStoredToken();
+        if (token) {
+            try {
+                await this.removeToken(token);
+            } catch (error) {
+                console.error(
+                    "Error removing token on permission revoked:",
+                    error
+                );
+            }
         }
     }
 }
 
-export const notificationService = NotificationService.getInstance();
+export const notificationService = new NotificationService();

@@ -7,7 +7,7 @@ import AppRoutes from "@/routes";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
-import { notificationService } from "@/services/notification.service";
+import { NotificationHandler } from "@/components/NotificationHandler";
 
 const queryClient = new QueryClient();
 
@@ -26,17 +26,13 @@ function App() {
         };
     }, [navigate]);
 
-    useEffect(() => {
-        // Initialize notification service
-        notificationService.initialize();
-    }, []);
-
     return (
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>
                 <LanguageProvider>
                     <AuthProvider>
                         <Toaster richColors position="top-right" />
+                        <NotificationHandler />
                         <AppRoutes />
                     </AuthProvider>
                 </LanguageProvider>

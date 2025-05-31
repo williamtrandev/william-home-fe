@@ -135,5 +135,20 @@
     "of": "trên",
     "viewDetails": "Xem chi tiết",
     "noSettlements": "Chưa có quyết toán nào",
-    "noSettlementsDescription": "Hãy thêm chi tiêu và tính toán để tạo quyết toán"
+    "noSettlementsDescription": "Hãy thêm chi tiêu và tính toán để tạo quyết toán",
+    "notificationPermissionGranted": "Đã bật thông báo thành công",
+    "notificationPermissionDenied": "Không thể bật thông báo",
+    "markAllAsRead": "Đánh dấu tất cả đã đọc",
+    "noNotifications": "Chưa có thông báo nào",
+    "markAsRead": "Đánh dấu đã đọc",
+    "notificationPermissionRemoved": "Đã tắt thông báo thành công",
+    "notificationPermissionRemoveFailed": "Không thể tắt thông báo",
+    "members": "Thành viên",
+    "memberDetails": "Xem và quản lý thành viên trong nhà",
+    "memberList": "Danh sách thành viên",
+    "searchMembers": "Tìm kiếm thành viên...",
+    "inviteMember": "Mời thành viên",
+    "joinedAt": "Tham gia lúc",
+    "email": "Email",
+    "membersFetchFailed": "Không thể tải danh sách thành viên"
 }

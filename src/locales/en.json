@@ -135,5 +135,20 @@
     "of": "of",
     "viewDetails": "View Details",
     "noSettlements": "No Settlements Yet",
-    "noSettlementsDescription": "Add expenses and calculate to create settlements"
+    "noSettlementsDescription": "Add expenses and calculate to create settlements",
+    "notificationPermissionGranted": "Notifications enabled successfully",
+    "notificationPermissionDenied": "Failed to enable notifications",
+    "markAllAsRead": "Mark all as read",
+    "noNotifications": "No notifications yet",
+    "markAsRead": "Mark as read",
+    "notificationPermissionRemoved": "Notifications disabled successfully",
+    "notificationPermissionRemoveFailed": "Failed to disable notifications",
+    "members": "Members",
+    "memberDetails": "View and manage house members",
+    "memberList": "Member List",
+    "searchMembers": "Search members...",
+    "inviteMember": "Invite Member",
+    "joinedAt": "Joined At",
+    "email": "Email",
+    "membersFetchFailed": "Failed to fetch members"
 }

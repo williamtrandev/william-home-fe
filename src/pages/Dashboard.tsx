@@ -213,6 +213,7 @@ const Dashboard = () => {
                     toast.success(t("expenseCreated"));
                     setQuickInput(""); // Clear input after adding
                     setRefetchTrigger((prev) => prev + 1); // Trigger refetch
+                    await fetchStats(); // Fetch updated stats
                 } catch (error) {
                     console.error("Error creating expense:", error);
                     toast.error(t("expenseCreateFailed"));
@@ -553,9 +554,12 @@ const Dashboard = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ExpenseList onUpdateExpense={() => {
-                            fetchStats();
-                        }} />
+                        <ExpenseList
+                            onUpdateExpense={() => {
+                                fetchStats();
+                            }}
+                            refetchTrigger={refetchTrigger}
+                        />
                     </CardContent>
                 </Card>
             </motion.div>

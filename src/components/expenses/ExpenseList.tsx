@@ -33,9 +33,13 @@ import { useNotifications } from "@/hooks/useNotifications";
 
 interface ExpenseListProps {
     onUpdateExpense?: () => void;
+    refetchTrigger?: number;
 }
 
-const ExpenseList: React.FC<ExpenseListProps> = ({ onUpdateExpense }) => {
+const ExpenseList: React.FC<ExpenseListProps> = ({
+    onUpdateExpense,
+    refetchTrigger,
+}) => {
     const { t, language } = useLanguage();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<PaginationInfo>({
@@ -75,6 +79,13 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ onUpdateExpense }) => {
         console.log("Notification received, refreshing expenses...");
         fetchExpenses(pagination.currentPage);
     });
+
+    // Add effect to listen for refetchTrigger changes
+    useEffect(() => {
+        if (refetchTrigger) {
+            fetchExpenses(1);
+        }
+    }, [refetchTrigger]);
 
     // Initial fetch
     useEffect(() => {

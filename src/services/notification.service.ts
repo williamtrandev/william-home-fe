@@ -150,6 +150,7 @@ class NotificationService {
             } catch (error) {
                 console.error("Error removing token on logout:", error);
             }
+            localStorage.removeItem(TOKEN_KEY);
         }
     }
 

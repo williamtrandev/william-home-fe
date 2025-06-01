@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { notificationService } from "@/services/notification.service";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { authService } from "@/services/auth.service";
 
 interface User {
     id: string;
@@ -36,8 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await notificationService.handleLogout();
 
             // Remove user data
-            localStorage.removeItem("user");
-            setUser(null);
+            authService.logout();
 
             // Show success message
             toast.success(t("logoutSuccess"));

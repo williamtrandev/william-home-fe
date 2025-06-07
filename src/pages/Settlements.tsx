@@ -361,28 +361,28 @@ const Settlements = () => {
                         <div className="space-y-4">
                             {/* Summary */}
                             <div className="space-y-2">
-                                <div className="flex justify-between items-center p-2.5 rounded-lg bg-blue-50">
+                                <div className="flex justify-between items-center p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20">
                                     <span className="text-sm text-muted-foreground">
                                         {t("totalExpenses")}
                                     </span>
-                                    <span className="text-base font-bold text-blue-600">
+                                    <span className="text-base font-bold text-blue-600 dark:text-blue-400">
                                         {formatCurrency(
                                             selectedSettlement.totalAmount
                                         )}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center p-2.5 rounded-lg bg-green-50">
+                                <div className="flex justify-between items-center p-2.5 rounded-lg bg-green-50 dark:bg-green-950/20">
                                     <span className="text-sm text-muted-foreground">
                                         {t("averagePerPerson")}
                                     </span>
-                                    <span className="text-base font-bold text-green-600">
+                                    <span className="text-base font-bold text-green-600 dark:text-green-400">
                                         {formatCurrency(
                                             selectedSettlement.avgPerPerson
                                         )}
                                     </span>
                                 </div>
                                 {selectedSettlement.createdBy && (
-                                    <div className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-primary/5">
+                                    <div className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-primary/5 dark:bg-primary/10">
                                         <div className="relative">
                                             <Avatar>
                                                 <AvatarImage

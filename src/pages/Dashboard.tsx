@@ -464,14 +464,28 @@ const Dashboard = () => {
                     </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
-                    <Input
-                        placeholder={t("quickInputPlaceholder")}
-                        value={quickInput}
-                        onChange={(e) => handleQuickInput(e.target.value)}
-                        onKeyPress={handleQuickInputKeyPress}
-                        disabled={isLoading}
-                        className="w-full sm:w-[400px] bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300 text-base"
-                    />
+                    <div className="flex gap-2 w-full sm:w-[400px]">
+                        <Input
+                            placeholder={t("quickInputPlaceholder")}
+                            value={quickInput}
+                            onChange={(e) => handleQuickInput(e.target.value)}
+                            onKeyPress={handleQuickInputKeyPress}
+                            disabled={isLoading}
+                            className="flex-1 bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300 text-base"
+                        />
+                        <Button
+                            onClick={() => {
+                                const event = {
+                                    key: "Enter",
+                                } as React.KeyboardEvent<HTMLInputElement>;
+                                handleQuickInputKeyPress(event);
+                            }}
+                            disabled={isLoading}
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </Button>
+                    </div>
                     <Button
                         onClick={handleCalculatePayment}
                         className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"

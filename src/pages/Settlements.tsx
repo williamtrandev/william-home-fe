@@ -9,6 +9,8 @@ import {
     Receipt,
     CreditCard,
     Eye,
+    List,
+    ArrowRight,
 } from "lucide-react";
 import {
     Dialog,
@@ -33,6 +35,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Settlements = () => {
     const { t } = useLanguage();
@@ -347,7 +350,7 @@ const Settlements = () => {
             )}
 
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="w-[350px] sm:w-[500px] mx-auto rounded-lg max-h-[85vh] overflow-y-auto">
+                <DialogContent className="w-[350px] sm:w-[600px] mx-auto rounded-lg max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex text-lg font-bold justify-center">
                             <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/20 border border-primary/10 text-primary">
@@ -414,95 +417,160 @@ const Settlements = () => {
                                 )}
                             </div>
 
-                            {/* Transactions */}
-                            <div className="space-y-2">
-                                <h3 className="text-sm font-medium text-muted-foreground px-1">
-                                    {t("transactions")}
-                                </h3>
-                                {selectedSettlement.transactions.map(
-                                    (transaction) => (
-                                        <div
-                                            key={transaction._id}
-                                            className="p-2.5 rounded-lg bg-background/50 border border-border/50"
-                                        >
-                                            {/* From */}
-                                            <div className="flex items-center gap-2 mb-1.5">
-                                                <div className="relative">
-                                                    <Avatar className="border border-red-500 object-cover">
-                                                        <AvatarImage
-                                                            className="rounded-full"
-                                                            src={
-                                                                transaction.from
-                                                                    .picture
-                                                            }
-                                                        />
-                                                        <AvatarFallback>
-                                                            {transaction.from.name.charAt(
-                                                                0
-                                                            )}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
-                                                        <span className="text-sm text-white">
-                                                            -
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-sm font-medium truncate">
-                                                        {transaction.from.name}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {t("needsToPay")}
-                                                    </div>
-                                                </div>
-                                            </div>
+                            {/* Tabs for Transactions and Expenses */}
+                            <Tabs defaultValue="transactions" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="transactions" className="flex items-center gap-2">
+                                        <ArrowRight className="h-4 w-4" />
+                                        {t("transactions")}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="expenses" className="flex items-center gap-2">
+                                        <List className="h-4 w-4" />
+                                        {t("expenses")}
+                                    </TabsTrigger>
+                                </TabsList>
 
-                                            {/* Amount */}
-                                            <div className="flex justify-center my-1.5">
-                                                <div className="text-sm font-semibold text-blue-600 px-2.5 py-0.5 rounded-full bg-blue-50">
-                                                    {formatCurrency(
-                                                        transaction.amount
-                                                    )}
+                                <TabsContent value="transactions" className="space-y-2 mt-4">
+                                    <h3 className="text-sm font-medium text-muted-foreground px-1">
+                                        {t("transactions")}
+                                    </h3>
+                                    {selectedSettlement.transactions.map(
+                                        (transaction) => (
+                                            <div
+                                                key={transaction._id}
+                                                className="p-2.5 rounded-lg bg-background/50 border border-border/50"
+                                            >
+                                                {/* From */}
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <div className="relative">
+                                                        <Avatar className="border border-red-500 object-cover">
+                                                            <AvatarImage
+                                                                className="rounded-full"
+                                                                src={
+                                                                    transaction.from
+                                                                        .picture
+                                                                }
+                                                            />
+                                                            <AvatarFallback>
+                                                                {transaction.from.name.charAt(
+                                                                    0
+                                                                )}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                                                            <span className="text-sm text-white">
+                                                                -
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm font-medium truncate">
+                                                            {transaction.from.name}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {t("needsToPay")}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            {/* To */}
-                                            <div className="flex items-center gap-2">
-                                                <div className="relative">
-                                                    <Avatar className="border border-green-500 object-cover">
-                                                        <AvatarImage
-                                                            className="rounded-full object-cover"
-                                                            src={
-                                                                transaction.to
-                                                                    .picture
-                                                            }
-                                                        />
-                                                        <AvatarFallback>
-                                                            {transaction.to.name.charAt(
-                                                                0
-                                                            )}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
-                                                        <span className="text-sm text-white">
-                                                            +
-                                                        </span>
+                                                {/* Amount */}
+                                                <div className="flex justify-center my-1.5">
+                                                    <div className="text-sm font-semibold text-blue-600 px-2.5 py-0.5 rounded-full bg-blue-50">
+                                                        {formatCurrency(
+                                                            transaction.amount
+                                                        )}
                                                     </div>
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-sm font-medium truncate">
-                                                        {transaction.to.name}
+
+                                                {/* To */}
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative">
+                                                        <Avatar className="border border-green-500 object-cover">
+                                                            <AvatarImage
+                                                                className="rounded-full object-cover"
+                                                                src={
+                                                                    transaction.to
+                                                                        .picture
+                                                                }
+                                                            />
+                                                            <AvatarFallback>
+                                                                {transaction.to.name.charAt(
+                                                                    0
+                                                                )}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                                                            <span className="text-sm text-white">
+                                                                +
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {t("willReceive")}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm font-medium truncate">
+                                                            {transaction.to.name}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {t("willReceive")}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )
-                                )}
-                            </div>
+                                        )
+                                    )}
+                                </TabsContent>
+
+                                <TabsContent value="expenses" className="space-y-2 mt-4">
+                                    <h3 className="text-sm font-medium text-muted-foreground px-1">
+                                        {t("expenses")} ({selectedSettlement.expenses.length})
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {selectedSettlement.expenses.map((expense) => (
+                                            <div
+                                                key={expense._id}
+                                                className="p-3 rounded-lg bg-background/50 border border-border/50 hover:bg-background/70 transition-colors"
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    {/* Left side - Expense info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <div className="p-1 bg-primary/10 rounded">
+                                                                <Receipt className="h-3 w-3 text-primary" />
+                                                            </div>
+                                                            <span className="text-sm font-medium truncate">
+                                                                {expense.purpose}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                            <span>{formatDate(expense.createdAt)}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Right side - Amount and creator */}
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <div className="text-sm font-bold text-primary">
+                                                            {formatCurrency(expense.amount)}
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <Avatar className="w-5 h-5">
+                                                                <AvatarImage
+                                                                    className="rounded-full object-cover"
+                                                                    src={expense.createdBy.picture}
+                                                                />
+                                                                <AvatarFallback className="text-xs">
+                                                                    {expense.createdBy.name.charAt(0)}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <span className="text-xs text-muted-foreground truncate max-w-16">
+                                                                {expense.createdBy.name}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
                         </div>
                     )}
                 </DialogContent>

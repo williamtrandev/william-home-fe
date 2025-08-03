@@ -155,5 +155,6 @@
     "inviteMember": "Invite Member",
     "joinedAt": "Joined At",
     "email": "Email",
-    "membersFetchFailed": "Failed to fetch members"
+    "membersFetchFailed": "Failed to fetch members",
+    "notSettled": "Not settled"
 }

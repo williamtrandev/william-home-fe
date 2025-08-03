@@ -13,6 +13,23 @@ export interface Settlement {
     };
 }
 
+export interface Expense {
+    _id: string;
+    house: string;
+    createdBy: {
+        _id: string;
+        email: string;
+        name: string;
+        picture?: string;
+    };
+    purpose: string;
+    amount: number;
+    isSettled: boolean;
+    createdAt: string;
+    updatedAt: string;
+    settledAt?: string;
+}
+
 export interface SettlementDetail extends Settlement {
     avgExpense: number;
     avgPerPerson: number;
@@ -43,6 +60,7 @@ export interface SettlementDetail extends Settlement {
         name: string;
         picture?: string;
     };
+    expenses: Expense[];
 }
 
 export interface SettlementsResponse {

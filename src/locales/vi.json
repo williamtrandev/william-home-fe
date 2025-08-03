@@ -155,5 +155,6 @@
     "inviteMember": "Mời thành viên",
     "joinedAt": "Tham gia lúc",
     "email": "Email",
-    "membersFetchFailed": "Không thể tải danh sách thành viên"
+    "membersFetchFailed": "Không thể tải danh sách thành viên",
+    "notSettled": "Chưa quyết toán"
 }

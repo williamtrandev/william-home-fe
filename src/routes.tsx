@@ -38,7 +38,7 @@ function AppRoutes() {
                     path="/notifications"
                     element={
                         <div className="container mx-auto p-6 space-y-8">
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <h1 className="text-3xl font-bold text-foreground">
                                 {t("notifications")}
                             </h1>
                             <p className="text-muted-foreground mt-2">
@@ -51,7 +51,7 @@ function AppRoutes() {
                     path="/settings"
                     element={
                         <div className="container mx-auto p-6 space-y-8">
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <h1 className="text-3xl font-bold text-foreground">
                                 {t("settings")}
                             </h1>
                             <p className="text-muted-foreground mt-2">
@@ -64,7 +64,7 @@ function AppRoutes() {
                     path="/help"
                     element={
                         <div className="container mx-auto p-6 space-y-8">
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <h1 className="text-3xl font-bold text-foreground">
                                 {t("help")}
                             </h1>
                             <p className="text-muted-foreground mt-2">

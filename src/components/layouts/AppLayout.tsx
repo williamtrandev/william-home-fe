@@ -1,27 +1,28 @@
-import React, { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import AppSidebar from "@/components/AppSidebar";
 import Header from "@/components/Header";
-import { useNavigate } from "react-router-dom";
+import AnimatedBackground from "@/components/AnimatedBackground";
 
 const AppLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const navigate = useNavigate();
 
     return (
-        <div className="flex h-screen">
-            {/* Sidebar */}
-            <AppSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <div className="flex h-screen relative isolate overflow-hidden">
+            <AnimatedBackground variant="subtle" />
 
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col">
-                {/* Header */}
-                <Header 
+            <AppSidebar
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
+
+            <div className="flex-1 flex flex-col min-w-0">
+                <Header
                     onMenuClick={() => setIsSidebarOpen(true)}
                     onProfileClick={() => navigate("/profile")}
                 />
 
-                {/* Page Content */}
                 <main className="flex-1 overflow-auto">
                     <Outlet />
                 </main>
@@ -30,4 +31,4 @@ const AppLayout = () => {
     );
 };
 
-export default AppLayout; 
+export default AppLayout;

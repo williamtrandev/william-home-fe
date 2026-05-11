@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, UserPlus, Mail, Shield, Crown } from "lucide-react";
+import { Search, UserPlus, Mail, Shield, Crown, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { houseService, type Member } from "@/services/house.service";
 import { useLocation } from "react-router-dom";
@@ -20,6 +20,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -30,8 +40,9 @@ const formatDate = (dateString: string) => {
 };
 
 const Members = () => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { theme } = useTheme();
+    const { user: authUser } = useAuth();
     const [members, setMembers] = useState<Member[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -39,6 +50,37 @@ const Members = () => {
     const [showInviteDialog, setShowInviteDialog] = useState(false);
     const [inviteEmail, setInviteEmail] = useState("");
     const [isInviting, setIsInviting] = useState(false);
+    const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
+    const [isRemoving, setIsRemoving] = useState(false);
+
+    const isOwner = authUser?.currentHouseRole === "OWNER";
+
+    /** Show the remove control only when the current user can actually remove the target. */
+    const canRemoveMember = (member: Member) =>
+        isOwner &&
+        member.role !== "OWNER" &&
+        member.id !== authUser?.id;
+
+    const handleRemoveMember = async () => {
+        if (!memberToRemove) return;
+
+        try {
+            setIsRemoving(true);
+            await houseService.removeMember(memberToRemove.id);
+            setMembers((prev) =>
+                prev.filter((m) => m.id !== memberToRemove.id)
+            );
+            toast.success(t("removeMemberSuccess"));
+            setMemberToRemove(null);
+        } catch (error: any) {
+            const errorMessage =
+                error.response?.data?.error?.[language] ||
+                t("removeMemberFailed");
+            toast.error(errorMessage);
+        } finally {
+            setIsRemoving(false);
+        }
+    };
 
     useEffect(() => {
         const handleResize = () => {
@@ -75,6 +117,7 @@ const Members = () => {
             await houseService.inviteMember({
                 email: inviteEmail,
                 houseId: houseService.getHouseId(),
+                language,
             });
             toast.success(t("invitationSent"));
             setInviteEmail("");
@@ -112,7 +155,7 @@ const Members = () => {
         <div className="container mx-auto p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    <h1 className="text-3xl font-bold text-foreground">
                         {t("members")}
                     </h1>
                     <p className="text-muted-foreground mt-2">
@@ -126,12 +169,12 @@ const Members = () => {
                             placeholder={t("searchMembers")}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 w-full sm:w-[300px] bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300"
+                            className="pl-10 w-full sm:w-[300px]"
                         />
                     </div>
                     <Button
                         onClick={() => setShowInviteDialog(true)}
-                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+                        className="w-full sm:w-auto"
                     >
                         <UserPlus className="w-4 h-4 mr-2" />
                         {t("inviteMember")}
@@ -141,7 +184,7 @@ const Members = () => {
 
             {/* Desktop Table View */}
             {!isMobile && (
-                <Card className="shadow-lg border-0 gradient-card">
+                <Card className="border border-border shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                             <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
@@ -165,6 +208,11 @@ const Members = () => {
                                         <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
                                             {t("joinedAt")}
                                         </th>
+                                        {isOwner && (
+                                            <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground w-24">
+                                                {t("actions")}
+                                            </th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -181,7 +229,7 @@ const Members = () => {
                                                             alt={member.name}
                                                             className="object-cover"
                                                         />
-                                                        <AvatarFallback className="gradient-primary text-white">
+                                                        <AvatarFallback>
                                                             {member.name.charAt(
                                                                 0
                                                             )}
@@ -205,11 +253,7 @@ const Members = () => {
                                                             ? "default"
                                                             : "secondary"
                                                     }
-                                                    className={`capitalize ${
-                                                        member.role === "OWNER"
-                                                            ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                                                            : "bg-muted text-muted-foreground"
-                                                    }`}
+                                                    className="capitalize"
                                                 >
                                                     {member.role === "OWNER" ? (
                                                         <div className="flex items-center gap-1">
@@ -224,6 +268,27 @@ const Members = () => {
                                             <td className="py-3 px-4 text-muted-foreground">
                                                 {formatDate(member.joinedAt)}
                                             </td>
+                                            {isOwner && (
+                                                <td className="py-3 px-4 text-right">
+                                                    {canRemoveMember(member) ? (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() =>
+                                                                setMemberToRemove(
+                                                                    member
+                                                                )
+                                                            }
+                                                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                                                            aria-label={t(
+                                                                "removeMember"
+                                                            )}
+                                                        >
+                                                            <UserX className="w-4 h-4" />
+                                                        </Button>
+                                                    ) : null}
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -239,7 +304,7 @@ const Members = () => {
                     {filteredMembers.map((member) => (
                         <Card
                             key={member.id}
-                            className="shadow-lg border-0 gradient-card"
+                            className="border border-border shadow-sm"
                         >
                             <CardContent className="p-4">
                                 <div className="flex items-center gap-3 mb-3">
@@ -249,7 +314,7 @@ const Members = () => {
                                             alt={member.name}
                                             className="object-cover"
                                         />
-                                        <AvatarFallback className="gradient-primary text-white">
+                                        <AvatarFallback>
                                             {member.name.charAt(0)}
                                         </AvatarFallback>
                                     </Avatar>
@@ -270,11 +335,7 @@ const Members = () => {
                                                 ? "default"
                                                 : "secondary"
                                         }
-                                        className={`capitalize ${
-                                            member.role === "OWNER"
-                                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                                                : "bg-muted text-muted-foreground"
-                                        }`}
+                                        className="capitalize"
                                     >
                                         {member.role === "OWNER" ? (
                                             <div className="flex items-center gap-1">
@@ -285,9 +346,24 @@ const Members = () => {
                                             t("member")
                                         )}
                                     </Badge>
-                                    <span className="text-sm text-muted-foreground">
-                                        {formatDate(member.joinedAt)}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground">
+                                            {formatDate(member.joinedAt)}
+                                        </span>
+                                        {canRemoveMember(member) && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() =>
+                                                    setMemberToRemove(member)
+                                                }
+                                                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                                                aria-label={t("removeMember")}
+                                            >
+                                                <UserX className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -327,7 +403,6 @@ const Members = () => {
                             <Button
                                 onClick={handleInvite}
                                 disabled={isInviting}
-                                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
                             >
                                 {isInviting ? (
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -342,6 +417,52 @@ const Members = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Remove member confirmation */}
+            <AlertDialog
+                open={!!memberToRemove}
+                onOpenChange={(open) => {
+                    if (!open && !isRemoving) setMemberToRemove(null);
+                }}
+            >
+                <AlertDialogContent className="w-[280px] sm:w-[400px] mx-auto rounded-lg">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {t("removeMemberConfirmTitle")}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {memberToRemove
+                                ? t("removeMemberConfirmDescription").replace(
+                                      "{name}",
+                                      memberToRemove.name
+                                  )
+                                : ""}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isRemoving}>
+                            {t("cancel")}
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleRemoveMember();
+                            }}
+                            disabled={isRemoving}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isRemoving ? (
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <UserX className="w-4 h-4 mr-2" />
+                                    {t("removeMember")}
+                                </>
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

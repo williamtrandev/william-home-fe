@@ -52,7 +52,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onProfileClick }) => {
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60"
+            className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50"
         >
             <div className="container flex h-16 items-center justify-between px-4">
                 <div className="flex items-center gap-4">
@@ -64,23 +64,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onProfileClick }) => {
                     >
                         <Menu className="w-5 h-5" />
                     </Button>
-                    {/* <motion.div
-                        className="flex items-center gap-3"
-                        whileHover={{ scale: 1.05 }}
-                        transition={{ type: "spring", stiffness: 400 }}
-                    >
-                        <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center text-white text-lg font-bold shadow-lg">
-                            W
-                        </div>
-                        <div className="hidden sm:block">
-                            <h1 className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                William's Home
-                            </h1>
-                            <p className="text-xs text-muted-foreground">
-                                Family Expense Manager
-                            </p>
-                        </div>
-                    </motion.div> */}
+                    {/* Logo placeholder — keep commented until brand asset is finalized. */}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -95,7 +79,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onProfileClick }) => {
                             className="w-10 h-10 hover:bg-primary/10"
                         >
                             {theme === "light" ? (
-                                <Moon className="w-5 h-5 text-blue-600" />
+                                <Moon className="w-5 h-5 text-primary" />
                             ) : (
                                 <Sun className="w-5 h-5 text-yellow-500" />
                             )}
@@ -134,7 +118,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onProfileClick }) => {
                                             src={userData?.picture}
                                             alt={userData?.name}
                                         />
-                                        <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold">
+                                        <AvatarFallback>
                                             {userData?.name?.[0]}
                                         </AvatarFallback>
                                     </Avatar>

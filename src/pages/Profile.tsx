@@ -1,340 +1,367 @@
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { format } from "date-fns";
+import { vi, enUS } from "date-fns/locale";
+import { toast } from "sonner";
+import {
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+} from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+    ArrowDownRight,
+    ArrowUpRight,
+    BarChart3,
+    Crown,
+    PieChart as PieChartIcon,
+    Scale,
+    Wallet,
+} from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Camera, Mail, User, Save, Crown } from "lucide-react";
-import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
-import { useLocation } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
+import {
+    expenseService,
+    type AnalyticsPeriod,
+    type MyAnalytics,
+} from "@/services/expense.service";
+import CategoryBadge from "@/components/categories/CategoryBadge";
+import CategoryBreakdownChart from "@/components/categories/CategoryBreakdownChart";
+import { normalizeBreakdown } from "@/lib/categories";
+import { cn } from "@/lib/utils";
 
-// Function to get avatar options based on picture URL
-const getAvatarOptions = (pictureUrl: string) => {
-    const isFemale = pictureUrl.toLowerCase().includes("female");
-    const gender = isFemale ? "female" : "male";
-    return Array.from(
-        { length: 8 },
-        (_, i) => `/avatar/${gender}/avatar${i + 1}.png`
-    );
-};
+const PERIODS: AnalyticsPeriod[] = ["currentMonth", "lastMonth", "allTime"];
 
 const Profile = () => {
-    const { t } = useLanguage();
-    const { user: authUser, setUser } = useAuth();
-    const location = useLocation();
-    const [isEditing, setIsEditing] = useState(false);
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        avatar: "",
-    });
-
-    // Get user data once
+    const { t, language } = useLanguage();
+    const { user: authUser } = useAuth();
     const userData = authService.getUser();
 
-    // Get avatar options based on current form data or user's picture
-    const avatarOptions = getAvatarOptions(
-        formData.avatar || userData?.picture || ""
+    const [period, setPeriod] = useState<AnalyticsPeriod>("currentMonth");
+    const [analytics, setAnalytics] = useState<MyAnalytics | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const formatAmount = useCallback(
+        (n: number) => `${Math.round(n).toLocaleString("vi-VN")}₫`,
+        []
     );
 
-    // Initialize form data only once
+    const formatDate = useCallback(
+        (iso: string) =>
+            format(new Date(iso), "dd/MM/yyyy", {
+                locale: language === "vi" ? vi : enUS,
+            }),
+        [language]
+    );
+
+    const fetchAnalytics = useCallback(
+        async (next: AnalyticsPeriod) => {
+            try {
+                setIsLoading(true);
+                const data = await expenseService.getMyAnalytics(next);
+                setAnalytics(data);
+            } catch (error) {
+                console.error("Failed to load personal analytics:", error);
+                toast.error(t("analyticsFetchFailed"));
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [t]
+    );
+
     useEffect(() => {
-        if (userData) {
-            setFormData({
-                name: userData.name || "",
-                email: userData.email || "",
-                avatar: userData.picture || avatarOptions[0],
-            });
-        }
-    }, []); // Empty dependency array to run only once
+        fetchAnalytics(period);
+    }, [period, fetchAnalytics]);
 
-    const handleSave = async () => {
-        try {
-            const updateData = {
-                name: formData.name,
-                email: formData.email,
-                picture: formData.avatar,
-            };
-
-            await authService.updateProfile(updateData);
-            // Update user in context to reflect changes in header
-            setUser({
-                ...authUser!,
-                name: formData.name,
-                email: formData.email,
-                picture: formData.avatar,
-            });
-            toast.success(t("profileUpdated"));
-            setIsEditing(false);
-        } catch (error) {
-            toast.error(t("updateFailed"));
-        }
-    };
-
-    const handleAvatarSelect = (avatarUrl: string) => {
-        setFormData((prev) => ({
-            ...prev,
-            avatar: avatarUrl,
-        }));
-    };
-
-    const handleCancel = () => {
-        // Reset form data to original values
-        if (userData) {
-            setFormData({
-                name: userData.name || "",
-                email: userData.email || "",
-                avatar: userData.picture || "",
-            });
-        }
-        setIsEditing(false);
-    };
-
-    // Check if user has no avatar
-    const hasNoAvatar = !userData?.picture;
+    const balanceState = useMemo(() => {
+        const b = analytics?.balance ?? 0;
+        if (b > 0) return "owed" as const;
+        if (b < 0) return "owes" as const;
+        return "even" as const;
+    }, [analytics?.balance]);
 
     return (
-        <div className="container mx-auto p-6 space-y-8">
+        <div className="container mx-auto p-6 space-y-6">
+            {/* Header */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
             >
-                <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        {t("profile")}
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                        {t("manageProfile")}
-                    </p>
+                <div className="flex items-center gap-4">
+                    <Avatar className="w-16 h-16 ring-2 ring-border">
+                        <AvatarImage
+                            src={userData?.picture}
+                            alt={userData?.name}
+                            className="object-cover w-full h-full"
+                        />
+                        <AvatarFallback className="text-xl">
+                            {userData?.name?.[0]}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
+                            {userData?.name}
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {userData?.email}
+                        </p>
+                        <div className="mt-1">
+                            <Badge
+                                variant={
+                                    authUser?.currentHouseRole === "OWNER"
+                                        ? "default"
+                                        : "secondary"
+                                }
+                                className="capitalize"
+                            >
+                                {authUser?.currentHouseRole === "OWNER" ? (
+                                    <span className="flex items-center gap-1">
+                                        <Crown className="w-3 h-3" />
+                                        {t("owner")}
+                                    </span>
+                                ) : (
+                                    t("member")
+                                )}
+                            </Badge>
+                        </div>
+                    </div>
                 </div>
-                <Button
-                    onClick={() => setIsEditing(!isEditing)}
-                    variant={isEditing ? "outline" : "default"}
-                    className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-                >
-                    {isEditing ? t("cancel") : t("editProfile")}
-                </Button>
+
+                {/* Period selector */}
+                <div className="inline-flex rounded-lg bg-muted p-1 self-start sm:self-auto">
+                    {PERIODS.map((p) => (
+                        <button
+                            key={p}
+                            type="button"
+                            onClick={() => setPeriod(p)}
+                            className={cn(
+                                "px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors",
+                                period === p
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {t(
+                                p === "currentMonth"
+                                    ? "periodCurrentMonth"
+                                    : p === "lastMonth"
+                                    ? "periodLastMonth"
+                                    : "periodAllTime"
+                            )}
+                        </button>
+                    ))}
+                </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Profile Card */}
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="lg:col-span-1"
+            {/* Hero stats: total spent, share, balance */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4"
+            >
+                <Card className="border border-border shadow-sm">
+                    <CardContent className="p-5">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                            <Wallet className="w-4 h-4" />
+                            <span className="text-xs font-medium uppercase tracking-wide">
+                                {t("totalSpentByMe")}
+                            </span>
+                        </div>
+                        {isLoading ? (
+                            <Skeleton className="h-8 w-32" />
+                        ) : (
+                            <div className="text-2xl sm:text-3xl font-bold text-foreground">
+                                {formatAmount(analytics?.totalSpent ?? 0)}
+                            </div>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                            {analytics?.myCount ?? 0} {t("expenses").toLowerCase()}
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border border-border shadow-sm">
+                    <CardContent className="p-5">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                            <Scale className="w-4 h-4" />
+                            <span className="text-xs font-medium uppercase tracking-wide">
+                                {t("yourShare")}
+                            </span>
+                        </div>
+                        {isLoading ? (
+                            <Skeleton className="h-8 w-32" />
+                        ) : (
+                            <div className="text-2xl sm:text-3xl font-bold text-foreground">
+                                {formatAmount(analytics?.share ?? 0)}
+                            </div>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                            {t("shareExplanation").replace(
+                                "{count}",
+                                String(analytics?.memberCount ?? 0)
+                            )}
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card
+                    className={cn(
+                        "border shadow-sm",
+                        balanceState === "owed" &&
+                            "border-emerald-200 dark:border-emerald-900",
+                        balanceState === "owes" &&
+                            "border-rose-200 dark:border-rose-900",
+                        balanceState === "even" && "border-border"
+                    )}
                 >
-                    <Card className="gradient-card border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-                        <CardHeader className="text-center pb-2">
-                            <div className="relative mx-auto">
-                                <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
-                                    <AvatarImage
-                                        src={formData.avatar}
-                                        alt={formData.name}
-                                        className="object-cover w-full h-full"
-                                    />
-                                    <AvatarFallback className="gradient-primary text-white text-2xl font-bold">
-                                        {formData.name?.[0]}
-                                    </AvatarFallback>
-                                </Avatar>
-                                {isEditing && (
-                                    <motion.button
-                                        whileHover={{ scale: 1.1 }}
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={() =>
-                                            handleAvatarSelect(avatarOptions[0])
-                                        }
-                                        className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
-                                    >
-                                        <Camera className="w-4 h-4" />
-                                    </motion.button>
+                    <CardContent className="p-5">
+                        <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                            {balanceState === "owed" ? (
+                                <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                            ) : balanceState === "owes" ? (
+                                <ArrowDownRight className="w-4 h-4 text-rose-600" />
+                            ) : (
+                                <BarChart3 className="w-4 h-4" />
+                            )}
+                            <span className="text-xs font-medium uppercase tracking-wide">
+                                {t("yourBalance")}
+                            </span>
+                        </div>
+                        {isLoading ? (
+                            <Skeleton className="h-8 w-32" />
+                        ) : (
+                            <div
+                                className={cn(
+                                    "text-2xl sm:text-3xl font-bold",
+                                    balanceState === "owed" &&
+                                        "text-emerald-600 dark:text-emerald-400",
+                                    balanceState === "owes" &&
+                                        "text-rose-600 dark:text-rose-400",
+                                    balanceState === "even" &&
+                                        "text-foreground"
+                                )}
+                            >
+                                {formatAmount(
+                                    Math.abs(analytics?.balance ?? 0)
                                 )}
                             </div>
-                        </CardHeader>
-                        <CardContent className="text-center space-y-4">
-                            <div>
-                                <h3 className="text-xl font-semibold">
-                                    {formData.name}
-                                </h3>
-                                <p className="text-muted-foreground">
-                                    {formData.email}
-                                </p>
-                                <div className="flex items-center justify-center gap-2 mt-2">
-                                    <Badge
-                                        variant={
-                                            authUser?.currentHouseRole ===
-                                            "OWNER"
-                                                ? "default"
-                                                : "secondary"
-                                        }
-                                        className={`capitalize ${
-                                            authUser?.currentHouseRole ===
-                                            "OWNER"
-                                                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                                                : "bg-muted text-muted-foreground"
-                                        }`}
-                                    >
-                                        {authUser?.currentHouseRole ===
-                                        "OWNER" ? (
-                                            <div className="flex items-center gap-1">
-                                                <Crown className="w-3 h-3" />
-                                                {t("owner")}
-                                            </div>
-                                        ) : (
-                                            t("member")
-                                        )}
-                                    </Badge>
-                                </div>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                            {balanceState === "owed"
+                                ? t("balanceOwedToYou")
+                                : balanceState === "owes"
+                                ? t("balanceYouOwe")
+                                : t("balanceEven")}
+                        </p>
+                    </CardContent>
+                </Card>
+            </motion.div>
+
+            {/* Category breakdown */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+            >
+                <Card className="border border-border shadow-sm">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                            <PieChartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                            {t("mySpendingByCategory")}
+                        </CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">
+                            {t("mySpendingByCategoryDescription")}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <Skeleton className="h-48 w-full" />
+                        ) : (
+                            <CategoryBreakdownChart
+                                data={normalizeBreakdown(
+                                    analytics?.byCategory
+                                )}
+                                formatAmount={formatAmount}
+                                centerLabel={{
+                                    primary: formatAmount(
+                                        analytics?.totalSpent ?? 0
+                                    ),
+                                    secondary: t("totalSpentByMe"),
+                                }}
+                                height={220}
+                            />
+                        )}
+                    </CardContent>
+                </Card>
+            </motion.div>
+
+            {/* My recent expenses */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+            >
+                <Card className="border border-border shadow-sm">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base sm:text-lg">
+                            {t("myRecentExpenses")}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <div className="space-y-2">
+                                {[...Array(3)].map((_, i) => (
+                                    <Skeleton key={i} className="h-12 w-full" />
+                                ))}
                             </div>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-
-                {/* Settings Form */}
-                <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="lg:col-span-2"
-                >
-                    <Card className="shadow-lg hover:shadow-xl transition-all duration-300">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <User className="w-5 h-5 text-primary" />
-                                {t("personalInfo")}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <Label
-                                        htmlFor="name"
-                                        className="text-sm font-medium"
+                        ) : analytics?.recent.length ? (
+                            <ul className="divide-y divide-border">
+                                {analytics.recent.map((e) => (
+                                    <li
+                                        key={e._id}
+                                        className="flex items-center justify-between py-3 gap-3"
                                     >
-                                        {t("fullName")}
-                                    </Label>
-                                    <div className="relative">
-                                        <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            id="name"
-                                            value={formData.name}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    name: e.target.value,
-                                                })
-                                            }
-                                            disabled={!isEditing}
-                                            className="pl-10 h-12 bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300"
-                                            placeholder={t("enterFullName")}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label
-                                        htmlFor="email"
-                                        className="text-sm font-medium"
-                                    >
-                                        {t("emailAddress")}
-                                    </Label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            value={formData.email}
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    email: e.target.value,
-                                                })
-                                            }
-                                            disabled={!isEditing}
-                                            className="pl-10 h-12 bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300"
-                                            placeholder={t("enterEmail")}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {isEditing && (
-                                <div className="space-y-4">
-                                    <Label className="text-sm font-medium">
-                                        {t("selectAvatar")}
-                                    </Label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 p-4 bg-muted/30 rounded-xl">
-                                        {avatarOptions.map((avatar, index) => (
-                                            <motion.div
-                                                key={index}
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                                onClick={() =>
-                                                    handleAvatarSelect(avatar)
-                                                }
-                                                className={`relative cursor-pointer rounded-xl overflow-hidden transition-all duration-300 ${
-                                                    formData.avatar === avatar
-                                                        ? "ring-2 ring-primary shadow-lg"
-                                                        : "hover:shadow-md"
-                                                }`}
-                                            >
-                                                <div className="aspect-square relative group">
-                                                    <Avatar className="w-full h-full rounded-xl">
-                                                        <AvatarImage
-                                                            src={avatar}
-                                                            className="object-cover w-full h-full"
-                                                        />
-                                                        <AvatarFallback className="text-lg bg-gradient-to-br from-primary/20 to-primary/10">
-                                                            {index + 1}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    {formData.avatar ===
-                                                        avatar && (
-                                                        <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                                                                <div className="w-4 h-4 rounded-full bg-primary" />
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                            <CategoryBadge
+                                                category={e.category}
+                                                variant="compact"
+                                            />
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-medium text-foreground truncate">
+                                                    {e.purpose}
                                                 </div>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                                <div className="text-xs text-muted-foreground">
+                                                    {formatDate(e.createdAt)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-sm font-semibold text-foreground tabular-nums flex-shrink-0">
+                                            {formatAmount(e.amount)}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-6">
+                                {t("noExpenses")}
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
+            </motion.div>
 
-                            {isEditing && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="flex gap-3 pt-4 border-t"
-                                >
-                                    <Button
-                                        onClick={handleSave}
-                                        className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-                                    >
-                                        <Save className="w-4 h-4 mr-2" />
-                                        {t("saveChanges")}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleCancel}
-                                        className="h-12"
-                                    >
-                                        {t("cancel")}
-                                    </Button>
-                                </motion.div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            </div>
         </div>
     );
 };

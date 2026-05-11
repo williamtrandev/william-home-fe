@@ -57,7 +57,7 @@ const PWAInstallPrompt = () => {
         <div className="fixed bottom-4 right-4 z-50">
             <Button
                 onClick={handleInstallClick}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="shadow-md hover:shadow-lg transition-shadow"
             >
                 <Download className="w-4 h-4 mr-2" />
                 {t("installApp")}

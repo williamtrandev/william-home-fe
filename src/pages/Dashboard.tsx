@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
     Plus,
@@ -8,8 +8,7 @@ import {
     CreditCard,
     Target,
     Calculator,
-    Calendar,
-    User,
+    PieChart as PieChartIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,10 +31,15 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import ExpenseList from "@/components/expenses/ExpenseList";
+import CategoryBreakdownChart from "@/components/categories/CategoryBreakdownChart";
+import CategoryPicker from "@/components/categories/CategoryPicker";
 import { expenseService } from "@/services/expense.service";
-import { useAuth } from "@/contexts/AuthContext";
-import { authService } from "@/services/auth.service";
-import AvatarSelectorModal from "@/components/auth/AvatarSelectorModal";
+import type { CategoryBreakdownRow } from "@/services/expense.service";
+import {
+    inferCategoryFromText,
+    normalizeBreakdown,
+    type CategoryKey,
+} from "@/lib/categories";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/hooks/useNotifications";
 
@@ -53,6 +57,7 @@ interface Stats {
     avgPerPerson: number;
     memberCount: number;
     growthStats: GrowthStats;
+    byCategory?: CategoryBreakdownRow[];
 }
 
 interface PaymentResult {
@@ -92,6 +97,9 @@ const Dashboard = () => {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const [quickInput, setQuickInput] = useState("");
+    // null = follow keyword inference; explicit value = user overrode the picker.
+    // Reset back to null after each successful submit so inference resumes.
+    const [quickCategory, setQuickCategory] = useState<CategoryKey | null>(null);
     const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
     const [paymentResults, setPaymentResults] = useState<PaymentResult | null>(
@@ -99,8 +107,6 @@ const Dashboard = () => {
     );
     const [isLoading, setIsLoading] = useState(false);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
-    const { user, setUser } = useAuth();
-    const [showAvatarModal, setShowAvatarModal] = useState(false);
     const [stats, setStats] = useState<Stats>({
         totalAmount: 0,
         totalExpenses: 0,
@@ -126,6 +132,9 @@ const Dashboard = () => {
         }
     };
 
+    const formatAmount = (n: number) =>
+        `${Math.round(n).toLocaleString("vi-VN")}₫`;
+
     // Add notification handler
     useNotifications(() => {
         // Refresh both expenses and stats
@@ -133,17 +142,6 @@ const Dashboard = () => {
 
         fetchStats();
     });
-
-    useEffect(() => {
-        // Check if user has avatar
-        if (user && !user.picture) {
-            console.log("User has no avatar:", user); // Debug log
-            setShowAvatarModal(true);
-        } else {
-            console.log("User has avatar:", user); // Debug log
-            setShowAvatarModal(false);
-        }
-    }, [user]);
 
     useEffect(() => {
         fetchStats();
@@ -187,40 +185,47 @@ const Dashboard = () => {
         setQuickInput(value);
     };
 
+    // Category shown in the picker = manual override, or the inferred one when
+    // the user hasn't touched it. Recompute on every keystroke.
+    const effectiveQuickCategory: CategoryKey = useMemo(() => {
+        if (quickCategory) return quickCategory;
+        const parsed = expenseService.parseQuickInput(quickInput);
+        if (parsed) return parsed.category;
+        return inferCategoryFromText(quickInput);
+    }, [quickInput, quickCategory]);
+
+    const submitQuickInput = async () => {
+        const parsed = expenseService.parseQuickInput(quickInput);
+        if (!parsed) {
+            toast.error(t("invalidQuickInput"));
+            return;
+        }
+        try {
+            setIsLoading(true);
+            await expenseService.createExpense({
+                amount: parsed.amount,
+                purpose: parsed.purpose,
+                // Manual override wins over keyword inference.
+                category: quickCategory ?? parsed.category,
+            });
+            toast.success(t("expenseCreated"));
+            setQuickInput("");
+            setQuickCategory(null);
+            setRefetchTrigger((prev) => prev + 1);
+            await fetchStats();
+        } catch (error) {
+            console.error("Error creating expense:", error);
+            toast.error(t("expenseCreateFailed"));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleQuickInputKeyPress = async (
         e: React.KeyboardEvent<HTMLInputElement>
     ) => {
         if (e.key === "Enter") {
-            // Check if input matches the pattern: +number[k|m] purpose
-            const match = quickInput.match(/^\+\s*(\d+)([km])?\s+(.+)$/i);
-            if (match) {
-                const [_, amount, unit, purpose] = match;
-                let finalAmount = parseInt(amount);
-
-                // Convert to actual amount based on unit
-                if (unit?.toLowerCase() === "k") {
-                    finalAmount *= 1000;
-                } else if (unit?.toLowerCase() === "m") {
-                    finalAmount *= 1000000;
-                }
-
-                try {
-                    setIsLoading(true);
-                    await expenseService.createExpense({
-                        amount: finalAmount,
-                        purpose: purpose.trim(),
-                    });
-                    toast.success(t("expenseCreated"));
-                    setQuickInput(""); // Clear input after adding
-                    setRefetchTrigger((prev) => prev + 1); // Trigger refetch
-                    await fetchStats(); // Fetch updated stats
-                } catch (error) {
-                    console.error("Error creating expense:", error);
-                    toast.error(t("expenseCreateFailed"));
-                } finally {
-                    setIsLoading(false);
-                }
-            }
+            await submitQuickInput();
         }
     };
 
@@ -258,8 +263,9 @@ const Dashboard = () => {
             title: t("total"),
             value: `${(stats.totalAmount || 0).toLocaleString("vi-VN")}₫`,
             icon: Wallet,
-            color: "text-blue-600",
-            bgColor: "bg-blue-50 dark:bg-blue-950/20",
+            iconColor: "text-blue-600 dark:text-blue-400",
+            iconBg: "bg-blue-100 dark:bg-blue-950/50",
+            accent: "bg-blue-500",
             growth: stats.growthStats?.totalAmountGrowth,
         },
         {
@@ -268,16 +274,18 @@ const Dashboard = () => {
                 "vi-VN"
             )}₫`,
             icon: TrendingUp,
-            color: "text-green-600",
-            bgColor: "bg-green-50 dark:bg-green-950/20",
+            iconColor: "text-emerald-600 dark:text-emerald-400",
+            iconBg: "bg-emerald-100 dark:bg-emerald-950/50",
+            accent: "bg-emerald-500",
             growth: stats.growthStats?.avgExpenseGrowth,
         },
         {
             title: t("transactions"),
             value: (stats.totalExpenses || 0).toString(),
             icon: CreditCard,
-            color: "text-purple-600",
-            bgColor: "bg-purple-50 dark:bg-purple-950/20",
+            iconColor: "text-violet-600 dark:text-violet-400",
+            iconBg: "bg-violet-100 dark:bg-violet-950/50",
+            accent: "bg-violet-500",
             growth: stats.growthStats?.totalExpensesGrowth,
         },
         {
@@ -286,43 +294,30 @@ const Dashboard = () => {
                 "vi-VN"
             )}₫`,
             icon: Target,
-            color: "text-orange-600",
-            bgColor: "bg-orange-50 dark:bg-orange-950/20",
+            iconColor: "text-amber-600 dark:text-amber-400",
+            iconBg: "bg-amber-100 dark:bg-amber-950/50",
+            accent: "bg-amber-500",
             growth: stats.growthStats?.avgPerPersonGrowth,
         },
     ];
-
-    const handleAvatarSelect = async (avatarUrl: string) => {
-        try {
-            const updatedUser = await authService.updateProfile({
-                picture: avatarUrl,
-            });
-            setUser(updatedUser);
-            setShowAvatarModal(false);
-            toast.success(t("avatarUpdated"));
-        } catch (error) {
-            console.error("Error updating avatar:", error);
-            toast.error(t("avatarUpdateFailed"));
-        }
-    };
 
     const renderMobilePaymentResults = () => (
         <div className="space-y-4">
             {/* Summary */}
             <div className="space-y-2">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30">
                     <span className="text-sm text-muted-foreground">
                         {t("totalExpenses")}
                     </span>
-                    <span className="text-lg font-bold text-blue-600">
+                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
                         {paymentResults?.totalAmount?.toLocaleString("vi-VN")}₫
                     </span>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-green-50">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-green-50 dark:bg-green-950/30">
                     <span className="text-sm text-muted-foreground">
                         {t("averageExpense")}
                     </span>
-                    <span className="text-lg font-bold text-green-600">
+                    <span className="text-lg font-bold text-green-600 dark:text-green-400">
                         {paymentResults?.avgExpense?.toLocaleString("vi-VN")}₫
                     </span>
                 </div>
@@ -409,7 +404,7 @@ const Dashboard = () => {
 
                         {/* Amount */}
                         <div className="flex justify-center my-2">
-                            <div className="text-sm font-semibold text-blue-600 px-3 py-1 rounded-full bg-blue-50">
+                            <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/30">
                                 {transaction.amount.toLocaleString("vi-VN")}₫
                             </div>
                         </div>
@@ -456,39 +451,43 @@ const Dashboard = () => {
                 className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
             >
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    <h1 className="text-3xl font-bold text-foreground">
                         {t("currentMonth")}
                     </h1>
                     <p className="text-muted-foreground mt-1">
                         {t("trackExpenses")}
                     </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex gap-2 w-full sm:w-[400px]">
-                        <Input
-                            placeholder={t("quickInputPlaceholder")}
-                            value={quickInput}
-                            onChange={(e) => handleQuickInput(e.target.value)}
-                            onKeyPress={handleQuickInputKeyPress}
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-start">
+                    <div className="flex flex-col gap-2 w-full sm:w-[400px]">
+                        <div className="flex gap-2">
+                            <Input
+                                placeholder={t("quickInputPlaceholder")}
+                                value={quickInput}
+                                onChange={(e) =>
+                                    handleQuickInput(e.target.value)
+                                }
+                                onKeyPress={handleQuickInputKeyPress}
+                                disabled={isLoading}
+                                className="flex-1 text-base"
+                            />
+                            <Button
+                                onClick={submitQuickInput}
+                                disabled={isLoading}
+                            >
+                                <Plus className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <CategoryPicker
+                            variant="compact"
+                            value={effectiveQuickCategory}
+                            onChange={setQuickCategory}
                             disabled={isLoading}
-                            className="flex-1 bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 shadow-md hover:shadow-lg transition-all duration-300 text-base"
                         />
-                        <Button
-                            onClick={() => {
-                                const event = {
-                                    key: "Enter",
-                                } as React.KeyboardEvent<HTMLInputElement>;
-                                handleQuickInputKeyPress(event);
-                            }}
-                            disabled={isLoading}
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-                        >
-                            <Plus className="w-4 h-4" />
-                        </Button>
                     </div>
                     <Button
                         onClick={handleCalculatePayment}
-                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+                        className="w-full sm:w-auto"
                     >
                         <Calculator className="w-4 h-4 mr-2" />
                         {t("calculatePayment")}
@@ -497,7 +496,7 @@ const Dashboard = () => {
             </motion.div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {statsCards.map((stat, index) => {
                     const { value, isPositive } = formatGrowth(
                         stat.growth || "0"
@@ -505,45 +504,54 @@ const Dashboard = () => {
                     return (
                         <motion.div
                             key={stat.title}
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 16 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            whileHover={{ scale: 1.02 }}
+                            transition={{ delay: index * 0.08, duration: 0.35 }}
+                            whileHover={{ y: -2 }}
                             className="group"
                         >
-                            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 gradient-card">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 sm:pb-3">
-                                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                                        {stat.title}
-                                    </CardTitle>
-                                    <div
-                                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${stat.bgColor} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
-                                    >
-                                        <stat.icon
-                                            className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.color}`}
-                                        />
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-lg sm:text-2xl font-bold text-foreground">
-                                        {stat.value}
-                                    </div>
-                                    <div className="flex items-center gap-1 mt-1">
-                                        {isPositive ? (
-                                            <TrendingUp
-                                                className={`w-4 h-4 ${stat.color}`}
-                                            />
-                                        ) : (
-                                            <TrendingDown
-                                                className={`w-4 h-4 ${stat.color}`}
-                                            />
-                                        )}
-                                        <p
-                                            className={`text-xs font-medium ${stat.color}`}
+                            <Card className="relative overflow-hidden border border-border shadow-sm hover:shadow-md transition-shadow duration-200 h-full">
+                                {/* Colored accent bar at the top */}
+                                <div
+                                    className={`absolute top-0 left-0 right-0 h-1 ${stat.accent}`}
+                                />
+
+                                <CardContent className="p-4 sm:p-5 pt-5 sm:pt-6">
+                                    {/* Icon + Growth pill */}
+                                    <div className="flex items-start justify-between mb-3 sm:mb-4">
+                                        <div
+                                            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${stat.iconBg} flex items-center justify-center transition-transform duration-200 group-hover:scale-110`}
                                         >
-                                            {value}%
-                                        </p>
+                                            <stat.icon
+                                                className={`w-5 h-5 sm:w-6 sm:h-6 ${stat.iconColor}`}
+                                            />
+                                        </div>
+
+                                        <div
+                                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold ${
+                                                isPositive
+                                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                                    : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400"
+                                            }`}
+                                        >
+                                            {isPositive ? (
+                                                <TrendingUp className="w-3 h-3" />
+                                            ) : (
+                                                <TrendingDown className="w-3 h-3" />
+                                            )}
+                                            <span>{value}%</span>
+                                        </div>
                                     </div>
+
+                                    {/* Title */}
+                                    <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">
+                                        {stat.title}
+                                    </p>
+
+                                    {/* Value */}
+                                    <p className="text-xl sm:text-2xl font-bold text-foreground tracking-tight truncate">
+                                        {stat.value}
+                                    </p>
                                 </CardContent>
                             </Card>
                         </motion.div>
@@ -551,13 +559,43 @@ const Dashboard = () => {
                 })}
             </div>
 
+            {/* Spending by Category */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+            >
+                <Card className="border border-border shadow-sm">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                            <PieChartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                            {t("spendingByCategory")}
+                        </CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">
+                            {t("spendingByCategoryDescription")}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <CategoryBreakdownChart
+                            data={normalizeBreakdown(stats?.byCategory)}
+                            formatAmount={formatAmount}
+                            centerLabel={{
+                                primary: formatAmount(stats?.totalAmount ?? 0),
+                                secondary: t("totalAmount"),
+                            }}
+                            height={200}
+                        />
+                    </CardContent>
+                </Card>
+            </motion.div>
+
             {/* Recent Expenses */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
             >
-                <Card className="shadow-lg border-0 gradient-card">
+                <Card className="border border-border shadow-sm">
                     <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                             <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
@@ -596,7 +634,7 @@ const Dashboard = () => {
                         <Button
                             onClick={confirmCalculation}
                             disabled={isLoading}
-                            className="w-28 sm:w-32 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                            className="w-28 sm:w-32"
                         >
                             {isLoading ? (
                                 <div className="flex items-center gap-2">
@@ -643,7 +681,7 @@ const Dashboard = () => {
                         <>
                             {/* Summary Cards */}
                             <div className="grid grid-cols-2 gap-4 mt-4">
-                                <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10">
+                                <Card className="border border-border shadow-sm bg-blue-50 dark:bg-card">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-sm font-medium text-muted-foreground">
                                             {t("totalExpenses")}
@@ -658,7 +696,7 @@ const Dashboard = () => {
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card className="border-0 shadow-md bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/20 dark:to-green-900/10">
+                                <Card className="border border-border shadow-sm bg-green-50 dark:bg-card">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-sm font-medium text-muted-foreground">
                                             {t("averageExpense")}
@@ -835,7 +873,7 @@ const Dashboard = () => {
                                                 </div>
                                                 <div className="flex items-center justify-center gap-2 mt-2">
                                                     <div className="h-px flex-1 bg-border/50"></div>
-                                                    <div className="text-sm font-semibold text-blue-600 px-3 py-1 rounded-full bg-blue-50">
+                                                    <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/30">
                                                         {transaction.amount.toLocaleString(
                                                             "vi-VN"
                                                         )}
@@ -864,11 +902,6 @@ const Dashboard = () => {
                 editingExpense={editingExpense}
             />
 
-            <AvatarSelectorModal
-                isOpen={showAvatarModal}
-                onClose={() => setShowAvatarModal(false)}
-                onSelect={handleAvatarSelect}
-            />
         </div>
     );
 };

@@ -19,6 +19,7 @@ import {
     HelpCircle,
     Bell,
     UserPlus,
+    BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -65,8 +66,8 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
             path: "/settlements",
         },
         {
-            icon: User,
-            label: t("profile"),
+            icon: BarChart3,
+            label: t("myActivity"),
             path: "/profile",
         },
         // Add members management for house owners
@@ -88,21 +89,21 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
 
     const SidebarContent = () => (
         <div className="flex flex-col h-full">
-            <div className="p-6 border-b">
+            <div className="p-6 border-b border-border/60">
                 <motion.div
                     className="flex items-center gap-3"
                     whileHover={{ scale: 1.05 }}
                     transition={{ type: "spring", stiffness: 400 }}
                 >
-                    <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center text-white text-lg font-bold shadow-lg">
+                    <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center text-lg font-bold">
                         W
                     </div>
                     <div>
-                        <h2 className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <h2 className="font-bold text-xl text-foreground">
                             William's Home
                         </h2>
                         <p className="text-xs text-muted-foreground">
-                            Family Expense Manager
+                            {t("appTagline")}
                         </p>
                     </div>
                 </motion.div>
@@ -117,9 +118,9 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
                                 key={item.path}
                                 variant={isActive ? "default" : "ghost"}
                                 className={cn(
-                                    "w-full justify-start h-12 px-4 rounded-xl transition-all duration-200",
+                                    "w-full justify-start h-12 px-4 rounded-xl transition-colors duration-200",
                                     isActive
-                                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
                                         : "hover:bg-primary/10"
                                 )}
                                 onClick={() => handleNavigation(item.path)}
@@ -187,7 +188,7 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
                 </div> */}
             </div>
 
-            <div className="p-4 border-t">
+            <div className="p-4 border-t border-border/60">
                 <Button
                     variant="ghost"
                     className="w-full justify-start h-12 px-4 rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-200"
@@ -220,7 +221,7 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
             <Sheet open={isOpen} onOpenChange={onClose}>
                 <SheetContent
                     side="left"
-                    className="p-0 w-[280px] sm:w-[320px]"
+                    className="p-0 w-[280px] sm:w-[320px] bg-background/80 backdrop-blur-xl border-r-border/60"
                 >
                     <SidebarContent />
                 </SheetContent>
@@ -230,7 +231,7 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
             <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: 280 }}
-                className="hidden md:block border-r bg-background"
+                className="hidden md:block border-r border-border/60 bg-background/70 backdrop-blur-xl relative z-10"
             >
                 <SidebarContent />
             </motion.div>

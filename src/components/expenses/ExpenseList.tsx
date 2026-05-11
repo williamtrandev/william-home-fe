@@ -5,6 +5,9 @@ import {
     Expense,
     PaginationInfo,
 } from "@/services/expense.service";
+import { isKnownCategory, type CategoryKey } from "@/lib/categories";
+import CategoryBadge from "@/components/categories/CategoryBadge";
+import CategoryPicker from "@/components/categories/CategoryPicker";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
@@ -54,6 +57,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
         id: string;
         purpose: string;
         amount: number;
+        category: CategoryKey;
     } | null>(null);
     const [showEditDialog, setShowEditDialog] = useState(false);
     const observer = useRef<IntersectionObserver>();
@@ -148,6 +152,9 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
             id: expense._id,
             purpose: expense.purpose,
             amount: expense.amount,
+            category: isKnownCategory(expense.category)
+                ? expense.category
+                : "OTHER",
         });
         setShowEditDialog(true);
     };
@@ -160,6 +167,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
             await expenseService.updateExpense(editingExpense.id, {
                 purpose: editingExpense.purpose,
                 amount: editingExpense.amount,
+                category: editingExpense.category,
             });
             toast.success(t("expenseUpdated"));
             fetchExpenses(pagination.currentPage);
@@ -190,7 +198,12 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                 >
                     <div className="flex items-start justify-between">
                         <div className="space-y-1 flex-1">
-                            <h3 className="font-semibold">{expense.purpose}</h3>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold">
+                                    {expense.purpose}
+                                </h3>
+                                <CategoryBadge category={expense.category} />
+                            </div>
                             <p className="text-sm text-muted-foreground">
                                 {formatDate(expense.createdAt)}
                             </p>
@@ -259,7 +272,11 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                             className="hover:bg-muted/50 transition-colors"
                         >
                             <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <CategoryBadge
+                                        category={expense.category}
+                                        variant="compact"
+                                    />
                                     <span className="truncate">
                                         {expense.purpose}
                                     </span>
@@ -418,6 +435,20 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                                 className="bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
+                        <div className="space-y-2">
+                            <Label>{t("category")}</Label>
+                            <CategoryPicker
+                                value={editingExpense?.category}
+                                onChange={(next) =>
+                                    setEditingExpense(
+                                        editingExpense
+                                            ? { ...editingExpense, category: next }
+                                            : null
+                                    )
+                                }
+                                disabled={isLoading}
+                            />
+                        </div>
                         <div className="flex justify-center gap-3 mt-4">
                             <Button
                                 variant="outline"
@@ -430,7 +461,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                             <Button
                                 onClick={handleSave}
                                 disabled={isLoading}
-                                className="w-28 sm:w-32 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                                className="w-28 sm:w-32"
                             >
                                 {isLoading ? (
                                     <div className="flex items-center gap-2">

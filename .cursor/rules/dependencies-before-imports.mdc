@@ -1,0 +1,14 @@
+---
+description: Verify npm dependencies exist before adding imports from new packages
+alwaysApply: true
+---
+
+# Dependencies before imports
+
+When adding or using a component that imports an npm package (e.g. `@radix-ui/*`, `recharts`, `cmdk`):
+
+1. **Check `package.json`** — the package must be listed under `dependencies` or `devDependencies`.
+2. **If missing** — add it with `npm install <package>` (updates `package.json` and `package-lock.json`), then use the import.
+3. **After pulling changes** — run `npm install` so `node_modules` matches the lockfile.
+
+Shadcn UI primitives often require explicit `@radix-ui/react-*` peers; do not assume they are installed because a `.tsx` file exists in `src/components/ui/`.

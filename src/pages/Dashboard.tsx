@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
     Plus,
@@ -9,6 +9,9 @@ import {
     Target,
     Calculator,
     PieChart as PieChartIcon,
+    ImagePlus,
+    X,
+    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +36,10 @@ import { toast } from "sonner";
 import ExpenseList from "@/components/expenses/ExpenseList";
 import CategoryBreakdownChart from "@/components/categories/CategoryBreakdownChart";
 import CategoryPicker from "@/components/categories/CategoryPicker";
-import { expenseService } from "@/services/expense.service";
+import {
+    expenseService,
+    MAX_ATTACHMENTS_PER_EXPENSE,
+} from "@/services/expense.service";
 import type { CategoryBreakdownRow } from "@/services/expense.service";
 import {
     inferCategoryFromText,
@@ -100,6 +106,10 @@ const Dashboard = () => {
     // null = follow keyword inference; explicit value = user overrode the picker.
     // Reset back to null after each successful submit so inference resumes.
     const [quickCategory, setQuickCategory] = useState<CategoryKey | null>(null);
+    // Receipts the user has picked but not yet uploaded — they're attached to
+    // the new expense in a second call after createExpense returns the id.
+    const [pendingReceipts, setPendingReceipts] = useState<File[]>([]);
+    const receiptInputRef = useRef<HTMLInputElement>(null);
     const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
     const [showPaymentDialog, setShowPaymentDialog] = useState(false);
     const [paymentResults, setPaymentResults] = useState<PaymentResult | null>(
@@ -194,23 +204,97 @@ const Dashboard = () => {
         return inferCategoryFromText(quickInput);
     }, [quickInput, quickCategory]);
 
+    // Local thumbnail previews for the pending receipts. Object URLs are
+    // generated lazily on selection and revoked when the file is removed or
+    // the form clears so we don't leak blobs.
+    const pendingPreviews = useMemo(
+        () => pendingReceipts.map((f) => URL.createObjectURL(f)),
+        [pendingReceipts]
+    );
+
+    useEffect(() => {
+        return () => {
+            pendingPreviews.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [pendingPreviews]);
+
+    const ALLOWED_RECEIPT_TYPES = new Set([
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+    ]);
+    const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
+
+    const handlePickReceipts = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const picked = Array.from(e.target.files || []);
+        // Reset immediately so the same file can be re-picked after removal.
+        e.target.value = "";
+        if (!picked.length) return;
+
+        const remaining = MAX_ATTACHMENTS_PER_EXPENSE - pendingReceipts.length;
+        if (picked.length > remaining) {
+            toast.error(t("attachmentLimitReached"));
+            return;
+        }
+        for (const f of picked) {
+            if (!ALLOWED_RECEIPT_TYPES.has(f.type)) {
+                toast.error(t("attachmentTypeUnsupported"));
+                return;
+            }
+            if (f.size > MAX_RECEIPT_BYTES) {
+                toast.error(t("attachmentTooLarge"));
+                return;
+            }
+        }
+        setPendingReceipts((prev) => [...prev, ...picked]);
+    };
+
+    const removePendingReceipt = (idx: number) => {
+        setPendingReceipts((prev) => prev.filter((_, i) => i !== idx));
+    };
+
     const submitQuickInput = async () => {
+        // Distinguish "nothing typed" from "typed but unparseable" so the
+        // toast tells the user what to do, not just that something failed.
+        if (!quickInput.trim()) {
+            toast.error(t("quickInputEmpty"));
+            return;
+        }
         const parsed = expenseService.parseQuickInput(quickInput);
         if (!parsed) {
-            toast.error(t("invalidQuickInput"));
+            toast.error(t("quickInputInvalid"));
             return;
         }
         try {
             setIsLoading(true);
-            await expenseService.createExpense({
+            const created = await expenseService.createExpense({
                 amount: parsed.amount,
                 purpose: parsed.purpose,
                 // Manual override wins over keyword inference.
                 category: quickCategory ?? parsed.category,
             });
+
+            // If the user picked receipts, attach them to the new expense in
+            // a follow-up call. Failure here doesn't undo the expense — the
+            // user can reopen the row and try again from the edit dialog.
+            if (pendingReceipts.length && created?._id) {
+                try {
+                    await expenseService.uploadAttachments(
+                        created._id,
+                        pendingReceipts
+                    );
+                } catch (uploadErr) {
+                    console.error("Receipt upload failed:", uploadErr);
+                    toast.error(t("attachmentUploadFailed"));
+                }
+            }
+
             toast.success(t("expenseCreated"));
             setQuickInput("");
             setQuickCategory(null);
+            setPendingReceipts([]);
             setRefetchTrigger((prev) => prev + 1);
             await fetchStats();
         } catch (error) {
@@ -472,12 +556,73 @@ const Dashboard = () => {
                                 className="flex-1 text-base"
                             />
                             <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => receiptInputRef.current?.click()}
+                                disabled={
+                                    isLoading ||
+                                    pendingReceipts.length >=
+                                        MAX_ATTACHMENTS_PER_EXPENSE
+                                }
+                                title={t("addReceipt")}
+                                aria-label={t("addReceipt")}
+                                className="relative"
+                            >
+                                <ImagePlus className="w-4 h-4" />
+                                {pendingReceipts.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                                        {pendingReceipts.length}
+                                    </span>
+                                )}
+                            </Button>
+                            <Button
                                 onClick={submitQuickInput}
                                 disabled={isLoading}
                             >
-                                <Plus className="w-4 h-4" />
+                                {isLoading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Plus className="w-4 h-4" />
+                                )}
                             </Button>
                         </div>
+                        <input
+                            ref={receiptInputRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            multiple
+                            hidden
+                            onChange={handlePickReceipts}
+                        />
+                        {pendingReceipts.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                                {pendingReceipts.map((file, idx) => (
+                                    <div
+                                        key={`${file.name}-${idx}`}
+                                        className="relative w-12 h-12 rounded-md overflow-hidden border border-border bg-muted"
+                                    >
+                                        <img
+                                            src={pendingPreviews[idx]}
+                                            alt=""
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                removePendingReceipt(idx)
+                                            }
+                                            disabled={isLoading}
+                                            aria-label={t("removeReceipt")}
+                                            className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-black/70 hover:bg-black text-white"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                         <CategoryPicker
                             variant="compact"
                             value={effectiveQuickCategory}

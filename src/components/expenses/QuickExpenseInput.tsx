@@ -20,7 +20,7 @@ const QuickExpenseInput: React.FC<QuickExpenseInputProps> = ({ onSuccess }) => {
 
         const parsedInput = expenseService.parseQuickInput(input);
         if (!parsedInput) {
-            toast.error(t("invalidQuickInput"));
+            toast.error(t("quickInputInvalid"));
             return;
         }
 

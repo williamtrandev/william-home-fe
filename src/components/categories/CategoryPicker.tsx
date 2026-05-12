@@ -79,14 +79,14 @@ const CategoryPicker = ({
         );
     }
 
+    // Default variant is sized for modal dialogs (~280-500px wide). Stays at
+    // 4 columns regardless of viewport so each chip has room for a sensible
+    // icon + label — wider responsive grids belong in the compact variant.
     return (
         <div
             role="radiogroup"
             aria-label={t("selectCategory")}
-            className={cn(
-                "grid grid-cols-4 sm:grid-cols-8 gap-2",
-                className
-            )}
+            className={cn("grid grid-cols-4 gap-2", className)}
         >
             {CATEGORIES_ORDERED.map((meta) => {
                 const Icon = meta.icon;
@@ -101,7 +101,7 @@ const CategoryPicker = ({
                         onClick={() => onChange(meta.key)}
                         title={t(meta.labelKey)}
                         className={cn(
-                            "group flex flex-col items-center gap-1 px-1.5 py-2 rounded-lg border transition-all",
+                            "group flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg border transition-all",
                             selected
                                 ? "border-primary ring-2 ring-primary/30 bg-primary/5"
                                 : "border-border hover:border-primary/40 hover:bg-muted/50",
@@ -110,13 +110,13 @@ const CategoryPicker = ({
                     >
                         <span
                             className={cn(
-                                "inline-flex items-center justify-center w-8 h-8 rounded-full",
+                                "inline-flex items-center justify-center w-10 h-10 rounded-full",
                                 meta.bg
                             )}
                         >
-                            <Icon className={cn("w-4 h-4", meta.text)} />
+                            <Icon className={cn("w-5 h-5", meta.text)} />
                         </span>
-                        <span className="text-[10px] sm:text-[11px] font-medium text-foreground text-center leading-tight">
+                        <span className="text-xs font-medium text-foreground text-center leading-tight">
                             {t(meta.labelKey)}
                         </span>
                     </button>

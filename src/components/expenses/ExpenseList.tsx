@@ -1,19 +1,23 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
     expenseService,
     Expense,
     PaginationInfo,
+    type Attachment,
 } from "@/services/expense.service";
 import { isKnownCategory, type CategoryKey } from "@/lib/categories";
 import CategoryBadge from "@/components/categories/CategoryBadge";
 import CategoryPicker from "@/components/categories/CategoryPicker";
+import AttachmentsField from "@/components/expenses/AttachmentsField";
+import ImageLightbox from "@/components/ui/ImageLightbox";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Edit2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Edit2, Paperclip } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -44,6 +48,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
     refetchTrigger,
 }) => {
     const { t, language } = useLanguage();
+    const { user } = useAuth();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<PaginationInfo>({
         currentPage: 1,
@@ -58,8 +63,15 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
         purpose: string;
         amount: number;
         category: CategoryKey;
+        createdById: string;
+        attachments: Attachment[];
     } | null>(null);
     const [showEditDialog, setShowEditDialog] = useState(false);
+    // Drives the row-level (read-only) lightbox when a viewer taps a thumb.
+    const [previewExpense, setPreviewExpense] = useState<{
+        expenseId: string;
+        index: number;
+    } | null>(null);
     const observer = useRef<IntersectionObserver>();
     const lastExpenseRef = useCallback(
         (node: HTMLDivElement) => {
@@ -155,8 +167,24 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
             category: isKnownCategory(expense.category)
                 ? expense.category
                 : "OTHER",
+            createdById: expense.createdBy?._id ?? "",
+            attachments: expense.attachments ?? [],
         });
         setShowEditDialog(true);
+    };
+
+    // Sync the local list when an attachment changes inside the dialog so the
+    // thumbnails in the row update without a full refetch.
+    const handleAttachmentsChange = (next: Attachment[]) => {
+        setEditingExpense((prev) => (prev ? { ...prev, attachments: next } : prev));
+        if (editingExpense) {
+            const id = editingExpense.id;
+            setExpenses((rows) =>
+                rows.map((r) =>
+                    r._id === id ? { ...r, attachments: next } : r
+                )
+            );
+        }
     };
 
     const handleSave = async () => {
@@ -185,6 +213,62 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
         setEditingExpense(null);
         setShowEditDialog(false);
     };
+
+    const renderRowThumbnails = (expense: Expense) => {
+        const list = expense.attachments ?? [];
+        if (!list.length) return null;
+        const shown = list.slice(0, 3);
+        const extra = list.length - shown.length;
+        return (
+            <div className="flex items-center gap-1.5">
+                {shown.map((a, idx) => (
+                    <button
+                        key={a.publicId}
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewExpense({
+                                expenseId: expense._id,
+                                index: idx,
+                            });
+                        }}
+                        className="block w-9 h-9 rounded-md overflow-hidden border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        aria-label={t("viewReceipt")}
+                    >
+                        <img
+                            src={a.url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                        />
+                    </button>
+                ))}
+                {extra > 0 && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewExpense({
+                                expenseId: expense._id,
+                                index: shown.length,
+                            });
+                        }}
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-border bg-muted text-xs font-medium text-muted-foreground hover:bg-muted/80"
+                        aria-label={t("viewReceipt")}
+                    >
+                        +{extra}
+                    </button>
+                )}
+            </div>
+        );
+    };
+
+    const previewImages =
+        previewExpense
+            ? expenses
+                  .find((e) => e._id === previewExpense.expenseId)
+                  ?.attachments?.map((a) => ({ url: a.url })) ?? []
+            : [];
 
     const renderMobileView = () => (
         <div className="space-y-4">
@@ -221,6 +305,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                                     {expense.createdBy?.name}
                                 </span>
                             </div>
+                            {renderRowThumbnails(expense)}
                         </div>
                         <div className="text-right ml-4">
                             <Button
@@ -280,6 +365,22 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                                     <span className="truncate">
                                         {expense.purpose}
                                     </span>
+                                    {!!expense.attachments?.length && (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setPreviewExpense({
+                                                    expenseId: expense._id,
+                                                    index: 0,
+                                                })
+                                            }
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-xs text-muted-foreground hover:bg-muted/80"
+                                            aria-label={t("viewReceipt")}
+                                        >
+                                            <Paperclip className="w-3 h-3" />
+                                            {expense.attachments.length}
+                                        </button>
+                                    )}
                                 </div>
                             </TableCell>
                             <TableCell>
@@ -379,8 +480,14 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
 
             {/* Edit Dialog */}
             <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-                <DialogContent className="w-[280px] sm:w-[400px] mx-auto rounded-lg">
-                    <DialogHeader>
+                {/*
+                  Wider + scrollable so the attachment grid and the 4-col
+                  category picker both fit without clipping on phones. The
+                  inner scrollable region keeps the header/buttons visible
+                  while long content (attachments) scrolls between them.
+                */}
+                <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md max-h-[90vh] mx-auto rounded-lg flex flex-col p-0">
+                    <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
                         <DialogTitle className="text-center text-lg">
                             {t("editExpense")}
                         </DialogTitle>
@@ -388,7 +495,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                             {t("editExpenseDescription")}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+                    <div className="space-y-4 px-6 pb-6 overflow-y-auto">
                         <div className="space-y-2">
                             <Label htmlFor="purpose">{t("purpose")}</Label>
                             <Input
@@ -435,6 +542,17 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                                 className="bg-background/90 border-primary/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
+                        {editingExpense && (
+                            <AttachmentsField
+                                expenseId={editingExpense.id}
+                                attachments={editingExpense.attachments}
+                                onChange={handleAttachmentsChange}
+                                // Any house member can attach/remove receipts.
+                                // The dialog is only reachable from an authed
+                                // session inside the user's house.
+                                canEdit={!!user}
+                            />
+                        )}
                         <div className="space-y-2">
                             <Label>{t("category")}</Label>
                             <CategoryPicker
@@ -476,6 +594,12 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <ImageLightbox
+                images={previewImages}
+                openIndex={previewExpense?.index ?? null}
+                onClose={() => setPreviewExpense(null)}
+            />
         </div>
     );
 };

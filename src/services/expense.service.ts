@@ -11,6 +11,16 @@ export interface CreateExpenseDto {
     category?: CategoryKey;
 }
 
+export interface Attachment {
+    url: string;
+    publicId: string;
+    mimeType?: string;
+    width?: number;
+    height?: number;
+    bytes: number;
+    uploadedAt?: string;
+}
+
 export interface Expense {
     _id: string;
     house: string;
@@ -24,10 +34,13 @@ export interface Expense {
     amount: number;
     /** Server may return a retired enum value; treat as string on read. */
     category?: CategoryKey | string;
+    attachments?: Attachment[];
     isSettled: boolean;
     createdAt: string;
     updatedAt: string;
 }
+
+export const MAX_ATTACHMENTS_PER_EXPENSE = 8;
 
 export interface PaginationInfo {
     currentPage: number;
@@ -259,6 +272,42 @@ class ExpenseService {
             console.error("Error updating expense:", error);
             throw error;
         }
+    }
+
+    /**
+     * Upload one or more receipt images to an existing expense.
+     * Returns the new full attachments array as it sits on the server.
+     */
+    async uploadAttachments(
+        expenseId: string,
+        files: File[]
+    ): Promise<Attachment[]> {
+        const form = new FormData();
+        files.forEach((f) => form.append("files", f));
+        const response = await axiosInstance.post<{ attachments: Attachment[] }>(
+            `/api/expenses/${expenseId}/attachments`,
+            form,
+            {
+                // Let the browser set the multipart boundary itself.
+                headers: { "Content-Type": "multipart/form-data" },
+            }
+        );
+        return response.data.attachments;
+    }
+
+    /** Remove a single receipt by its Cloudinary publicId. */
+    async deleteAttachment(
+        expenseId: string,
+        publicId: string
+    ): Promise<Attachment[]> {
+        const response = await axiosInstance.delete<{
+            attachments: Attachment[];
+        }>(
+            `/api/expenses/${expenseId}/attachments/${encodeURIComponent(
+                publicId
+            )}`
+        );
+        return response.data.attachments;
     }
 }
 

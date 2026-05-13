@@ -17,7 +17,7 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Edit2, Paperclip } from "lucide-react";
+import { ChevronLeft, ChevronRight, Edit2, ImageIcon } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -214,52 +214,50 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
         setShowEditDialog(false);
     };
 
-    const renderRowThumbnails = (expense: Expense) => {
+    const renderReceiptPreview = (expense: Expense, showLabel = false) => {
         const list = expense.attachments ?? [];
         if (!list.length) return null;
-        const shown = list.slice(0, 3);
+        const shown = list.slice(0, showLabel ? 2 : 1);
         const extra = list.length - shown.length;
         return (
-            <div className="flex items-center gap-1.5">
-                {shown.map((a, idx) => (
-                    <button
-                        key={a.publicId}
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setPreviewExpense({
-                                expenseId: expense._id,
-                                index: idx,
-                            });
-                        }}
-                        className="block w-9 h-9 rounded-md overflow-hidden border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                        aria-label={t("viewReceipt")}
-                    >
-                        <img
-                            src={a.url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                        />
-                    </button>
-                ))}
-                {extra > 0 && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setPreviewExpense({
-                                expenseId: expense._id,
-                                index: shown.length,
-                            });
-                        }}
-                        className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-border bg-muted text-xs font-medium text-muted-foreground hover:bg-muted/80"
-                        aria-label={t("viewReceipt")}
-                    >
-                        +{extra}
-                    </button>
-                )}
-            </div>
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewExpense({
+                        expenseId: expense._id,
+                        index: 0,
+                    });
+                }}
+                className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label={t("viewReceipt")}
+            >
+                <ImageIcon className="w-3.5 h-3.5 shrink-0" />
+                {showLabel && <span className="shrink-0">{t("attachments")}</span>}
+                <div className="flex items-center -space-x-1 shrink-0">
+                    {shown.map((a) => (
+                        <span
+                            key={a.publicId}
+                            className="block w-6 h-6 rounded-full overflow-hidden border-2 border-background shadow-sm"
+                        >
+                            <img
+                                src={a.url}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                            />
+                        </span>
+                    ))}
+                    {extra > 0 && (
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border-2 border-background bg-card text-[10px] font-semibold text-muted-foreground shadow-sm">
+                            +{extra}
+                        </span>
+                    )}
+                </div>
+                <span className="tabular-nums">
+                    {list.length}
+                </span>
+            </button>
         );
     };
 
@@ -305,7 +303,11 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                                     {expense.createdBy?.name}
                                 </span>
                             </div>
-                            {renderRowThumbnails(expense)}
+                            {!!expense.attachments?.length && (
+                                <div className="pt-2">
+                                    {renderReceiptPreview(expense, true)}
+                                </div>
+                            )}
                         </div>
                         <div className="text-right ml-4">
                             <Button
@@ -365,22 +367,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
                                     <span className="truncate">
                                         {expense.purpose}
                                     </span>
-                                    {!!expense.attachments?.length && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setPreviewExpense({
-                                                    expenseId: expense._id,
-                                                    index: 0,
-                                                })
-                                            }
-                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-xs text-muted-foreground hover:bg-muted/80"
-                                            aria-label={t("viewReceipt")}
-                                        >
-                                            <Paperclip className="w-3 h-3" />
-                                            {expense.attachments.length}
-                                        </button>
-                                    )}
+                                    {renderReceiptPreview(expense)}
                                 </div>
                             </TableCell>
                             <TableCell>

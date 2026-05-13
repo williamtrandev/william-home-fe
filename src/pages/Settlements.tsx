@@ -11,6 +11,7 @@ import {
     Eye,
     List,
     ArrowRight,
+    ImageIcon,
 } from "lucide-react";
 import {
     Dialog,
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ImageLightbox from "@/components/ui/ImageLightbox";
 
 const Settlements = () => {
     const { t } = useLanguage();
@@ -46,6 +48,10 @@ const Settlements = () => {
     const [selectedSettlement, setSelectedSettlement] =
         useState<SettlementDetail | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [previewReceipt, setPreviewReceipt] = useState<{
+        expenseId: string;
+        index: number;
+    } | null>(null);
 
     const fetchSettlements = async (page: number) => {
         try {
@@ -87,6 +93,228 @@ const Settlements = () => {
         return format(new Date(dateString), "dd/MM/yyyy HH:mm");
     };
 
+    const formatShortDate = (dateString: string) => {
+        return format(new Date(dateString), "dd/MM HH:mm");
+    };
+
+    const previewExpense = previewReceipt
+        ? selectedSettlement?.expenses.find(
+              (expense) => expense._id === previewReceipt.expenseId
+          )
+        : undefined;
+
+    const previewImages =
+        previewExpense?.attachments?.map((attachment) => ({
+            url: attachment.url,
+            caption: previewExpense.purpose,
+        })) ?? [];
+
+    const renderReceiptPreview = (
+        expense: SettlementDetail["expenses"][number]
+    ) => {
+        const list = expense.attachments ?? [];
+        if (!list.length) return null;
+
+        const shown = list.slice(0, 2);
+        const extra = list.length - shown.length;
+
+        return (
+            <button
+                type="button"
+                onClick={() =>
+                    setPreviewReceipt({
+                        expenseId: expense._id,
+                        index: 0,
+                    })
+                }
+                className="inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label={t("viewReceipt")}
+            >
+                <ImageIcon className="w-3.5 h-3.5 shrink-0" />
+                <span className="shrink-0">{t("attachments")}</span>
+                <div className="flex items-center -space-x-1 shrink-0">
+                    {shown.map((attachment) => (
+                        <span
+                            key={attachment.publicId}
+                            className="block w-6 h-6 rounded-full overflow-hidden border-2 border-background shadow-sm"
+                        >
+                            <img
+                                src={attachment.url}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                            />
+                        </span>
+                    ))}
+                    {extra > 0 && (
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border-2 border-background bg-card text-[10px] font-semibold text-muted-foreground shadow-sm">
+                            +{extra}
+                        </span>
+                    )}
+                </div>
+                <span className="tabular-nums">{list.length}</span>
+            </button>
+        );
+    };
+
+    const renderMobileSettlementCard = (settlement: Settlement) => (
+        <Card
+            key={settlement._id}
+            className="overflow-hidden border border-border shadow-sm active:scale-[0.99] transition-transform"
+            onClick={() => fetchSettlementDetail(settlement._id)}
+        >
+            <CardContent className="p-0">
+                <button
+                    type="button"
+                    className="w-full p-4 text-left"
+                    aria-label={t("viewDetails")}
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                                <Receipt className="h-3.5 w-3.5" />
+                                {formatShortDate(settlement.createdAt)}
+                            </div>
+                            <div className="mt-3 text-2xl font-bold text-foreground">
+                                {formatCurrency(settlement.totalAmount)}
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                                {settlement.totalExpenses} {t("expenses").toLowerCase()}
+                            </div>
+                        </div>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                            <ChevronRight className="h-5 w-5" />
+                        </div>
+                    </div>
+
+                    {settlement.createdBy && (
+                        <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+                            <div className="text-xs text-muted-foreground">
+                                {t("settledBy")}
+                            </div>
+                            <div className="flex items-center gap-2 min-w-0">
+                                <Avatar className="h-7 w-7">
+                                    <AvatarImage
+                                        className="rounded-full object-cover"
+                                        src={settlement.createdBy.picture}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                        {settlement.createdBy.name.charAt(0)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <span className="max-w-[9rem] truncate text-sm font-medium">
+                                    {settlement.createdBy.name}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </button>
+            </CardContent>
+        </Card>
+    );
+
+    const renderTransactionCard = (
+        transaction: SettlementDetail["transactions"][number]
+    ) => (
+        <div
+            key={transaction._id}
+            className="rounded-xl border border-border bg-card p-3 shadow-sm"
+        >
+            <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <Avatar className="h-8 w-8 border border-rose-500">
+                        <AvatarImage
+                            className="rounded-full object-cover"
+                            src={transaction.from.picture}
+                        />
+                        <AvatarFallback>
+                            {transaction.from.name.charAt(0)}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">
+                            {transaction.from.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            {t("needsToPay")}
+                        </div>
+                    </div>
+                </div>
+
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+
+                <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                    <div className="min-w-0 text-right">
+                        <div className="truncate text-sm font-medium">
+                            {transaction.to.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            {t("willReceive")}
+                        </div>
+                    </div>
+                    <Avatar className="h-8 w-8 border border-emerald-500">
+                        <AvatarImage
+                            className="rounded-full object-cover"
+                            src={transaction.to.picture}
+                        />
+                        <AvatarFallback>{transaction.to.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                </div>
+            </div>
+            <div className="mt-3 rounded-lg bg-primary/10 px-3 py-2 text-center text-sm font-bold text-primary">
+                {formatCurrency(transaction.amount)}
+            </div>
+        </div>
+    );
+
+    const renderExpenseCard = (
+        expense: SettlementDetail["expenses"][number]
+    ) => (
+        <div
+            key={expense._id}
+            className="rounded-xl border border-border bg-card p-3 shadow-sm"
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                            <Receipt className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-foreground">
+                                {expense.purpose}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                {formatDate(expense.createdAt)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="shrink-0 text-right text-sm font-bold text-primary">
+                    {formatCurrency(expense.amount)}
+                </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+                <div className="flex min-w-0 items-center gap-2">
+                    <Avatar className="h-7 w-7">
+                        <AvatarImage
+                            className="rounded-full object-cover"
+                            src={expense.createdBy.picture}
+                        />
+                        <AvatarFallback className="text-xs">
+                            {expense.createdBy.name.charAt(0)}
+                        </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate text-xs text-muted-foreground">
+                        {expense.createdBy.name}
+                    </span>
+                </div>
+                {!!expense.attachments?.length && renderReceiptPreview(expense)}
+            </div>
+        </div>
+    );
+
     if (loading) {
         return (
             <div className="container mx-auto p-6 space-y-4">
@@ -101,13 +329,13 @@ const Settlements = () => {
     }
 
     return (
-        <div className="container mx-auto p-6">
-            <div className="flex items-center justify-between mb-8">
+        <div className="container mx-auto p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-5 sm:mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-foreground">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                         {t("settlements")}
                     </h1>
-                    <p className="text-muted-foreground mt-2">
+                    <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">
                         {t("settlementDetails")}
                     </p>
                 </div>
@@ -238,84 +466,7 @@ const Settlements = () => {
                         </CardContent>
                     </Card>
                 ) : (
-                    settlements.map((settlement) => (
-                        <Card
-                            key={settlement._id}
-                            className="hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-primary/20"
-                            onClick={() =>
-                                fetchSettlementDetail(settlement._id)
-                            }
-                        >
-                            <CardContent className="p-4">
-                                <div className="space-y-3">
-                                    {/* Header */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="p-1.5 bg-primary/10 rounded-lg">
-                                                <Receipt className="h-4 w-4 text-primary" />
-                                            </div>
-                                            <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/20 border border-primary/10 text-primary">
-                                                <span className="text-xs font-medium">
-                                                    {formatDate(
-                                                        settlement.createdAt
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <Badge
-                                            variant="secondary"
-                                            className="px-2 py-0.5"
-                                        >
-                                            <CreditCard className="h-3 w-3 mr-1" />
-                                            {settlement.totalExpenses}
-                                        </Badge>
-                                    </div>
-
-                                    {/* Amount */}
-                                    <div className="flex items-center justify-between">
-                                        <div className="text-sm text-muted-foreground">
-                                            {t("totalExpenses")}
-                                        </div>
-                                        <div className="text-lg font-bold text-primary">
-                                            {formatCurrency(
-                                                settlement.totalAmount
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Creator */}
-                                    {settlement.createdBy && (
-                                        <div className="flex items-center justify-center gap-2 pt-2 border-t border-border">
-                                            <div className="relative">
-                                                <Avatar>
-                                                    <AvatarImage
-                                                        className="rounded-full object-cover"
-                                                        src={
-                                                            settlement.createdBy
-                                                                .picture
-                                                        }
-                                                    />
-                                                    <AvatarFallback>
-                                                        {settlement.createdBy.name.charAt(
-                                                            0
-                                                        )}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                            </div>
-                                            <div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {t("settledBy")}
-                                                </div>
-                                                <div className="text-sm font-medium">
-                                                    {settlement.createdBy.name}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))
+                    settlements.map(renderMobileSettlementCard)
                 )}
             </div>
 
@@ -349,11 +500,17 @@ const Settlements = () => {
                 </div>
             )}
 
-            <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="w-[350px] sm:w-[600px] mx-auto rounded-lg max-h-[80vh] overflow-y-auto">
+            <Dialog
+                open={isDetailOpen}
+                onOpenChange={(open) => {
+                    setIsDetailOpen(open);
+                    if (!open) setPreviewReceipt(null);
+                }}
+            >
+                <DialogContent className="w-[calc(100vw-1rem)] sm:w-full sm:max-w-2xl mx-auto rounded-xl max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
                     <DialogHeader>
                         <DialogTitle className="flex text-lg font-bold justify-center">
-                            <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/20 border border-primary/10 text-primary">
+                            <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 border border-primary/10 text-primary text-sm">
                                 {selectedSettlement &&
                                     formatDate(selectedSettlement.createdAt)}
                             </div>
@@ -363,29 +520,42 @@ const Settlements = () => {
                     {selectedSettlement && (
                         <div className="space-y-4">
                             {/* Summary */}
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <div className="rounded-xl bg-primary/10 p-3">
                                     <span className="text-sm text-muted-foreground">
                                         {t("totalExpenses")}
                                     </span>
-                                    <span className="text-base font-bold text-blue-600 dark:text-blue-400">
+                                    <div className="mt-1 text-xl font-bold text-primary">
                                         {formatCurrency(
                                             selectedSettlement.totalAmount
                                         )}
-                                    </span>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between items-center p-2.5 rounded-lg bg-green-50 dark:bg-green-950/20">
+                                <div className="rounded-xl bg-muted p-3">
                                     <span className="text-sm text-muted-foreground">
                                         {t("averagePerPerson")}
                                     </span>
-                                    <span className="text-base font-bold text-green-600 dark:text-green-400">
+                                    <div className="mt-1 text-xl font-bold text-foreground">
                                         {formatCurrency(
                                             selectedSettlement.avgPerPerson
                                         )}
-                                    </span>
+                                    </div>
                                 </div>
+                            </div>
+                            <div className="space-y-2">
                                 {selectedSettlement.createdBy && (
-                                    <div className="flex items-center justify-center gap-2 p-2.5 rounded-lg bg-primary/5 dark:bg-primary/10">
+                                    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
+                                        <div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {t("settledBy")}
+                                            </div>
+                                            <div className="text-sm font-medium">
+                                                {
+                                                    selectedSettlement.createdBy
+                                                        .name
+                                                }
+                                            </div>
+                                        </div>
                                         <div className="relative">
                                             <Avatar>
                                                 <AvatarImage
@@ -402,17 +572,6 @@ const Settlements = () => {
                                                 </AvatarFallback>
                                             </Avatar>
                                         </div>
-                                        <div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {t("settledBy")}
-                                            </div>
-                                            <div className="text-sm font-medium">
-                                                {
-                                                    selectedSettlement.createdBy
-                                                        .name
-                                                }
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -420,11 +579,11 @@ const Settlements = () => {
                             {/* Tabs for Transactions and Expenses */}
                             <Tabs defaultValue="transactions" className="w-full">
                                 <TabsList className="grid w-full grid-cols-2">
-                                    <TabsTrigger value="transactions" className="flex items-center gap-2">
+                                    <TabsTrigger value="transactions" className="flex items-center gap-2 text-xs sm:text-sm">
                                         <ArrowRight className="h-4 w-4" />
                                         {t("transactions")}
                                     </TabsTrigger>
-                                    <TabsTrigger value="expenses" className="flex items-center gap-2">
+                                    <TabsTrigger value="expenses" className="flex items-center gap-2 text-xs sm:text-sm">
                                         <List className="h-4 w-4" />
                                         {t("expenses")}
                                     </TabsTrigger>
@@ -435,87 +594,7 @@ const Settlements = () => {
                                         {t("transactions")}
                                     </h3>
                                     {selectedSettlement.transactions.map(
-                                        (transaction) => (
-                                            <div
-                                                key={transaction._id}
-                                                className="p-2.5 rounded-lg bg-background/50 border border-border/50"
-                                            >
-                                                {/* From */}
-                                                <div className="flex items-center gap-2 mb-1.5">
-                                                    <div className="relative">
-                                                        <Avatar className="border border-red-500 object-cover">
-                                                            <AvatarImage
-                                                                className="rounded-full"
-                                                                src={
-                                                                    transaction.from
-                                                                        .picture
-                                                                }
-                                                            />
-                                                            <AvatarFallback>
-                                                                {transaction.from.name.charAt(
-                                                                    0
-                                                                )}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
-                                                            <span className="text-sm text-white">
-                                                                -
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-sm font-medium truncate">
-                                                            {transaction.from.name}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {t("needsToPay")}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Amount */}
-                                                <div className="flex justify-center my-1.5">
-                                                    <div className="text-sm font-semibold text-blue-600 px-2.5 py-0.5 rounded-full bg-blue-50">
-                                                        {formatCurrency(
-                                                            transaction.amount
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* To */}
-                                                <div className="flex items-center gap-2">
-                                                    <div className="relative">
-                                                        <Avatar className="border border-green-500 object-cover">
-                                                            <AvatarImage
-                                                                className="rounded-full object-cover"
-                                                                src={
-                                                                    transaction.to
-                                                                        .picture
-                                                                }
-                                                            />
-                                                            <AvatarFallback>
-                                                                {transaction.to.name.charAt(
-                                                                    0
-                                                                )}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
-                                                            <span className="text-sm text-white">
-                                                                +
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-sm font-medium truncate">
-                                                            {transaction.to.name}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {t("willReceive")}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )
+                                        renderTransactionCard
                                     )}
                                 </TabsContent>
 
@@ -524,50 +603,9 @@ const Settlements = () => {
                                         {t("expenses")} ({selectedSettlement.expenses.length})
                                     </h3>
                                     <div className="space-y-2">
-                                        {selectedSettlement.expenses.map((expense) => (
-                                            <div
-                                                key={expense._id}
-                                                className="p-3 rounded-lg bg-background/50 border border-border/50 hover:bg-background/70 transition-colors"
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    {/* Left side - Expense info */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <div className="p-1 bg-primary/10 rounded">
-                                                                <Receipt className="h-3 w-3 text-primary" />
-                                                            </div>
-                                                            <span className="text-sm font-medium truncate">
-                                                                {expense.purpose}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                            <span>{formatDate(expense.createdAt)}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Right side - Amount and creator */}
-                                                    <div className="flex flex-col items-end gap-1">
-                                                        <div className="text-sm font-bold text-primary">
-                                                            {formatCurrency(expense.amount)}
-                                                        </div>
-                                                        <div className="flex items-center gap-1">
-                                                            <Avatar className="w-5 h-5">
-                                                                <AvatarImage
-                                                                    className="rounded-full object-cover"
-                                                                    src={expense.createdBy.picture}
-                                                                />
-                                                                <AvatarFallback className="text-xs">
-                                                                    {expense.createdBy.name.charAt(0)}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                            <span className="text-xs text-muted-foreground truncate max-w-16">
-                                                                {expense.createdBy.name}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                        {selectedSettlement.expenses.map(
+                                            renderExpenseCard
+                                        )}
                                     </div>
                                 </TabsContent>
                             </Tabs>
@@ -575,6 +613,11 @@ const Settlements = () => {
                     )}
                 </DialogContent>
             </Dialog>
+            <ImageLightbox
+                images={previewImages}
+                openIndex={previewReceipt?.index ?? null}
+                onClose={() => setPreviewReceipt(null)}
+            />
         </div>
     );
 };

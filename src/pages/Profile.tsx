@@ -67,7 +67,7 @@ const Profile = () => {
         async (next: AnalyticsPeriod) => {
             try {
                 setIsLoading(true);
-                const data = await expenseService.getMyAnalytics(next);
+                const data = await expenseService.getMyAnalytics(next, true);
                 setAnalytics(data);
             } catch (error) {
                 console.error("Failed to load personal analytics:", error);
@@ -89,6 +89,11 @@ const Profile = () => {
         if (b < 0) return "owes" as const;
         return "even" as const;
     }, [analytics?.balance]);
+
+    const unsettledRecent = useMemo(
+        () => analytics?.recent.filter((e) => e.isSettled === false) ?? [],
+        [analytics?.recent]
+    );
 
     return (
         <div className="container mx-auto p-6 space-y-6">
@@ -318,6 +323,9 @@ const Profile = () => {
                         <CardTitle className="text-base sm:text-lg">
                             {t("myRecentExpenses")}
                         </CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">
+                            {t("notSettled")}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
@@ -326,9 +334,9 @@ const Profile = () => {
                                     <Skeleton key={i} className="h-12 w-full" />
                                 ))}
                             </div>
-                        ) : analytics?.recent.length ? (
+                        ) : unsettledRecent.length ? (
                             <ul className="divide-y divide-border">
-                                {analytics.recent.map((e) => (
+                                {unsettledRecent.map((e) => (
                                     <li
                                         key={e._id}
                                         className="flex items-center justify-between py-3 gap-3"

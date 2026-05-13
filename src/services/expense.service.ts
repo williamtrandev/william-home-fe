@@ -232,12 +232,17 @@ class ExpenseService {
     }
 
     async getMyAnalytics(
-        period: AnalyticsPeriod = "currentMonth"
+        period: AnalyticsPeriod = "currentMonth",
+        unsettledOnly: boolean = false
     ): Promise<MyAnalytics> {
         const response = await axiosInstance.get(
             "/api/expenses/analytics/me",
             {
-                params: { houseId: this.HOUSE_ID, period },
+                params: {
+                    houseId: this.HOUSE_ID,
+                    period,
+                    ...(unsettledOnly ? { isSettled: false } : {}),
+                },
             }
         );
         return response.data;

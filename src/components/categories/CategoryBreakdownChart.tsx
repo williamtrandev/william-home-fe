@@ -38,7 +38,7 @@ const renderTooltip = (
         const row = payload[0].payload as CategoryBreakdownRow | undefined;
         if (!row) return null;
         return (
-            <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-md text-xs">
+            <div className="relative z-50 rounded-lg border border-border bg-popover px-3 py-2 shadow-xl text-xs">
                 <div className="font-medium text-foreground">
                     {labelFor(row.category as string)}
                 </div>
@@ -78,11 +78,11 @@ const CategoryBreakdownChart = ({
     return (
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
             <div
-                className="relative flex-shrink-0"
+                className="relative z-10 flex-shrink-0 overflow-visible"
                 style={{ width: height, height }}
             >
                 <ResponsiveContainer>
-                    <PieChart>
+                    <PieChart margin={{ top: 12, right: 12, bottom: 12, left: 12 }}>
                         <Pie
                             data={data}
                             dataKey="total"
@@ -100,11 +100,19 @@ const CategoryBreakdownChart = ({
                                 />
                             ))}
                         </Pie>
-                        <Tooltip content={renderTooltip(formatAmount, labelFor)} />
+                        <Tooltip
+                            allowEscapeViewBox={{ x: true, y: true }}
+                            content={renderTooltip(formatAmount, labelFor)}
+                            wrapperStyle={{
+                                zIndex: 50,
+                                outline: "none",
+                                pointerEvents: "none",
+                            }}
+                        />
                     </PieChart>
                 </ResponsiveContainer>
                 {centerLabel && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+                    <div className="absolute inset-0 z-0 flex flex-col items-center justify-center pointer-events-none text-center">
                         <span className="text-base sm:text-lg font-bold text-foreground leading-tight">
                             {centerLabel.primary}
                         </span>

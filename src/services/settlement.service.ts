@@ -13,6 +13,16 @@ export interface Settlement {
     };
 }
 
+export interface Attachment {
+    url: string;
+    publicId: string;
+    mimeType?: string;
+    width?: number;
+    height?: number;
+    bytes: number;
+    uploadedAt?: string;
+}
+
 export interface Expense {
     _id: string;
     house: string;
@@ -28,6 +38,7 @@ export interface Expense {
     createdAt: string;
     updatedAt: string;
     settledAt?: string;
+    attachments?: Attachment[];
 }
 
 export interface SettlementDetail extends Settlement {

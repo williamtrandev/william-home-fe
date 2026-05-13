@@ -103,3 +103,5 @@ ui-debug.log
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+.cursorignore

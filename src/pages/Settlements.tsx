@@ -38,6 +38,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ImageLightbox from "@/components/ui/ImageLightbox";
+import VietQrCard from "@/components/payments/VietQrCard";
 
 const Settlements = () => {
     const { t } = useLanguage();
@@ -96,6 +97,19 @@ const Settlements = () => {
     const formatShortDate = (dateString: string) => {
         return format(new Date(dateString), "dd/MM HH:mm");
     };
+
+    const buildSettlementQrDescription = (
+        fromName: string,
+        toName: string,
+        dateString?: string
+    ) =>
+        t("settlementQrContent")
+            .replace("{from}", fromName)
+            .replace("{to}", toName)
+            .replace(
+                "{date}",
+                format(new Date(dateString ?? Date.now()), "dd/MM/yyyy")
+            );
 
     const previewExpense = previewReceipt
         ? selectedSettlement?.expenses.find(
@@ -264,6 +278,16 @@ const Settlements = () => {
             <div className="mt-3 rounded-lg bg-primary/10 px-3 py-2 text-center text-sm font-bold text-primary">
                 {formatCurrency(transaction.amount)}
             </div>
+            <VietQrCard
+                bankAccount={transaction.to.bankAccount}
+                amount={transaction.amount}
+                description={buildSettlementQrDescription(
+                    transaction.from.name,
+                    transaction.to.name,
+                    selectedSettlement?.createdAt
+                )}
+                recipientName={transaction.to.name}
+            />
         </div>
     );
 

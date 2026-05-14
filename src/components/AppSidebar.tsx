@@ -20,6 +20,7 @@ import {
     Bell,
     UserPlus,
     BarChart3,
+    Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -69,6 +70,11 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
             icon: BarChart3,
             label: t("myActivity"),
             path: "/profile",
+        },
+        {
+            icon: Banknote,
+            label: t("bankAccount"),
+            path: "/bank-account",
         },
         // Add members management for house owners
         ...(user?.currentHouseRole === "OWNER"

@@ -9,6 +9,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import Members from "@/pages/Members";
 import JoinHouse from "@/pages/JoinHouse";
 import Settlements from "@/pages/Settlements";
+import BankAccount from "@/pages/BankAccount";
 
 function AppRoutes() {
     const { user } = useAuth();
@@ -32,6 +33,7 @@ function AppRoutes() {
             <Route element={<AppLayout />}>
                 <Route path="/members" element={<Members />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/bank-account" element={<BankAccount />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/settlements" element={<Settlements />} />
                 <Route

@@ -1,4 +1,5 @@
 import axiosInstance from "@/lib/axios";
+import type { BankAccount } from "@/services/auth.service";
 
 export interface Settlement {
     _id: string;
@@ -55,12 +56,14 @@ export interface SettlementDetail extends Settlement {
             email: string;
             name: string;
             picture?: string;
+            bankAccount?: BankAccount;
         };
         to: {
             _id: string;
             email: string;
             name: string;
             picture?: string;
+            bankAccount?: BankAccount;
         };
         amount: number;
         _id: string;

@@ -6,6 +6,7 @@ export interface User {
     name: string;
     picture?: string;
     role?: string;
+    bankAccount?: BankAccount;
 }
 
 export interface LoginResponse {
@@ -16,6 +17,14 @@ export interface LoginResponse {
 export interface UpdateProfileDto {
     picture?: string;
     name?: string;
+    bankAccount?: BankAccount;
+}
+
+export interface BankAccount {
+    bankCode: string;
+    bankName: string;
+    accountNo: string;
+    accountName: string;
 }
 
 class AuthService {
@@ -82,6 +91,34 @@ class AuthService {
             return updatedUser;
         } catch (error) {
             console.error("Update profile error:", error);
+            throw error;
+        }
+    }
+
+    getBankAccount(): BankAccount | null {
+        return this.getUser()?.bankAccount ?? null;
+    }
+
+    async updateBankAccount(data: BankAccount): Promise<BankAccount> {
+        try {
+            const response = await axiosInstance.put("/api/auth/profile", {
+                bankAccount: data,
+            });
+            const updatedUser = response.data;
+
+            const currentUser = this.getUser();
+            if (currentUser) {
+                const newUser = {
+                    ...currentUser,
+                    ...updatedUser,
+                    bankAccount: updatedUser?.bankAccount ?? data,
+                };
+                localStorage.setItem(this.USER_KEY, JSON.stringify(newUser));
+            }
+
+            return updatedUser?.bankAccount ?? data;
+        } catch (error) {
+            console.error("Update bank account error:", error);
             throw error;
         }
     }

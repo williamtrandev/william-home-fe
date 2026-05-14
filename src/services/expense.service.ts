@@ -3,6 +3,7 @@ import {
     inferCategoryFromText,
     type CategoryKey,
 } from "@/lib/categories";
+import type { BankAccount } from "@/services/auth.service";
 
 export interface CreateExpenseDto {
     houseId: string;
@@ -126,6 +127,7 @@ interface PaymentResult {
             email: string;
             name: string;
             picture: string;
+            bankAccount?: BankAccount;
         };
         amount: number;
     }>;
@@ -135,12 +137,14 @@ interface PaymentResult {
             email: string;
             name: string;
             picture: string;
+            bankAccount?: BankAccount;
         };
         to: {
             _id: string;
             email: string;
             name: string;
             picture: string;
+            bankAccount?: BankAccount;
         };
         amount: number;
     }>;

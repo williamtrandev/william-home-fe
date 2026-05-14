@@ -48,6 +48,8 @@ import {
 } from "@/lib/categories";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/hooks/useNotifications";
+import VietQrCard from "@/components/payments/VietQrCard";
+import type { BankAccount } from "@/services/auth.service";
 
 interface GrowthStats {
     totalAmountGrowth: string;
@@ -77,6 +79,7 @@ interface PaymentResult {
             email: string;
             name: string;
             picture: string;
+            bankAccount?: BankAccount;
         };
         amount: number;
     }>;
@@ -86,15 +89,18 @@ interface PaymentResult {
             email: string;
             name: string;
             picture: string;
+            bankAccount?: BankAccount;
         };
         to: {
             _id: string;
             email: string;
             name: string;
             picture: string;
+            bankAccount?: BankAccount;
         };
         amount: number;
     }>;
+    createdAt?: string;
 }
 
 const Dashboard = () => {
@@ -144,6 +150,21 @@ const Dashboard = () => {
 
     const formatAmount = (n: number) =>
         `${Math.round(n).toLocaleString("vi-VN")}₫`;
+
+    const formatSettlementQrDate = (date?: string) =>
+        new Intl.DateTimeFormat("vi-VN").format(
+            date ? new Date(date) : new Date()
+        );
+
+    const buildSettlementQrDescription = (
+        fromName: string,
+        toName: string,
+        date?: string
+    ) =>
+        t("settlementQrContent")
+            .replace("{from}", fromName)
+            .replace("{to}", toName)
+            .replace("{date}", formatSettlementQrDate(date));
 
     // Add notification handler
     useNotifications(() => {
@@ -520,6 +541,16 @@ const Dashboard = () => {
                                 </div>
                             </div>
                         </div>
+                        <VietQrCard
+                            bankAccount={transaction.to.bankAccount}
+                            amount={transaction.amount}
+                            description={buildSettlementQrDescription(
+                                transaction.from.name,
+                                transaction.to.name,
+                                paymentResults?.createdAt
+                            )}
+                            recipientName={transaction.to.name}
+                        />
                     </div>
                 ))}
             </div>
@@ -1026,6 +1057,21 @@ const Dashboard = () => {
                                                     </div>
                                                     <div className="h-px flex-1 bg-border/50"></div>
                                                 </div>
+                                                <VietQrCard
+                                                    bankAccount={
+                                                        transaction.to
+                                                            .bankAccount
+                                                    }
+                                                    amount={transaction.amount}
+                                                    description={buildSettlementQrDescription(
+                                                        transaction.from.name,
+                                                        transaction.to.name,
+                                                        paymentResults?.createdAt
+                                                    )}
+                                                    recipientName={
+                                                        transaction.to.name
+                                                    }
+                                                />
                                             </div>
                                         )
                                     )}

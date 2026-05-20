@@ -1,11 +1,8 @@
 import axiosInstance from "@/lib/axios";
-import {
-    requestNotificationPermission,
-    onMessageListener,
-    getToken,
-} from "@/lib/firebase";
+import { getToken, requestNotificationPermission } from "@/lib/firebase";
 
 const TOKEN_KEY = "fcm_token";
+const PUSH_ENABLED_KEY = "push_notifications_enabled";
 
 interface DeviceInfo {
     userAgent: string;
@@ -13,8 +10,17 @@ interface DeviceInfo {
     timestamp: number;
 }
 
+export class NotificationPermissionDeniedError extends Error {
+    constructor() {
+        super("PERMISSION_DENIED");
+        this.name = "NotificationPermissionDeniedError";
+    }
+}
+
 class NotificationService {
     private baseUrl = "/api/notifications";
+    private lastPostedToken: string | null = null;
+    private saveTokenInFlight: Promise<void> | null = null;
 
     private getStoredToken(): string | null {
         return localStorage.getItem(TOKEN_KEY);
@@ -36,50 +42,188 @@ class NotificationService {
         };
     }
 
-    async requestPermission() {
-        try {
-            // Check if we already have a token
-            const storedToken = this.getStoredToken();
-            if (storedToken) {
-                return storedToken;
-            }
+    getBrowserPermission(): NotificationPermission {
+        if (typeof Notification === "undefined") return "denied";
+        return Notification.permission;
+    }
 
-            // Request permission and get token directly from Firebase
-            const token = await getToken();
-            if (token) {
-                // Save token to server with device info
-                await this.saveToken(token);
-                this.setStoredToken(token);
-                return token;
-            }
-            throw new Error("Failed to get FCM token");
-        } catch (error) {
-            console.error("Error requesting notification permission:", error);
-            throw error;
+    private setPushEnabled(enabled: boolean) {
+        localStorage.setItem(PUSH_ENABLED_KEY, enabled ? "1" : "0");
+    }
+
+    /** User opted in on this device (explicit pref only; not browser permission alone). */
+    isPushEnabled(): boolean {
+        const pref = localStorage.getItem(PUSH_ENABLED_KEY);
+        if (pref === "1") return true;
+        if (pref === "0") return false;
+        // Legacy: subscribed before PUSH_ENABLED_KEY existed
+        return !!this.getStoredToken();
+    }
+
+    isPushPreferenceOn(): boolean {
+        return this.isPushEnabled();
+    }
+
+    getPushStatus(): "on" | "off" | "blocked" | "pending" {
+        const permission = this.getBrowserPermission();
+        if (!this.isPushEnabled()) return "off";
+        if (permission === "denied") return "blocked";
+        if (permission === "granted" && this.getStoredToken()) return "on";
+        if (permission === "granted") return "pending";
+        return "pending";
+    }
+
+    private async hasActiveServerTokens(): Promise<boolean> {
+        try {
+            const response = await axiosInstance.get<
+                { fcmToken?: string }[]
+            >(`${this.baseUrl}/tokens`);
+            return Array.isArray(response.data) && response.data.length > 0;
+        } catch {
+            return false;
         }
     }
 
-    async saveToken(token: string) {
-        try {
+    private async saveToken(token: string) {
+        if (this.lastPostedToken === token) return;
+
+        if (this.saveTokenInFlight) {
+            await this.saveTokenInFlight;
+            if (this.lastPostedToken === token) return;
+        }
+
+        this.saveTokenInFlight = (async () => {
             const deviceInfo = this.getDeviceInfo();
             await axiosInstance.post(`${this.baseUrl}/token`, {
                 fcmToken: token,
                 deviceInfo,
             });
-        } catch (error) {
-            console.error("Error saving notification token:", error);
-            throw error;
+            this.lastPostedToken = token;
+        })();
+
+        try {
+            await this.saveTokenInFlight;
+        } finally {
+            this.saveTokenInFlight = null;
         }
+    }
+
+    private async syncTokenIfGranted(): Promise<void> {
+        if (this.getBrowserPermission() !== "granted") return;
+
+        const stored = this.getStoredToken();
+        const token = await getToken();
+        if (!token) {
+            this.removeStoredToken();
+            this.lastPostedToken = null;
+            return;
+        }
+
+        if (token !== stored) {
+            this.setStoredToken(token);
+        }
+        await this.saveToken(token);
+    }
+
+    private async deactivateAllServerTokens(): Promise<void> {
+        try {
+            await axiosInstance.delete(`${this.baseUrl}/tokens`);
+        } catch (error) {
+            console.error("Error deactivating all push tokens:", error);
+        }
+    }
+
+    /**
+     * Sync FCM when user opted in. Never turns push back on after explicit opt-out (pref "0").
+     */
+    async reconcilePushPreference(): Promise<void> {
+        const permission = this.getBrowserPermission();
+        const pref = localStorage.getItem(PUSH_ENABLED_KEY);
+
+        if (pref === "0") {
+            return;
+        }
+
+        if (permission === "denied") {
+            if (pref === "1") {
+                await this.disablePush();
+            }
+            return;
+        }
+
+        if (pref === "1") {
+            if (permission === "granted") {
+                await this.syncTokenIfGranted();
+            }
+            return;
+        }
+
+        // Legacy: no pref — only restore if server still has an active subscription
+        if (permission !== "granted") return;
+
+        const serverHasTokens = await this.hasActiveServerTokens();
+        if (!serverHasTokens) return;
+
+        this.setPushEnabled(true);
+        await this.syncTokenIfGranted();
     }
 
     async removeToken(token: string) {
         try {
-            await axiosInstance.delete(`${this.baseUrl}/token/${token}`);
+            await axiosInstance.delete(
+                `${this.baseUrl}/token/${encodeURIComponent(token)}`
+            );
             this.removeStoredToken();
+            if (this.lastPostedToken === token) {
+                this.lastPostedToken = null;
+            }
         } catch (error) {
             console.error("Error removing notification token:", error);
             throw error;
         }
+    }
+
+    /** @deprecated Use reconcilePushPreference */
+    async syncIfEnabled(): Promise<void> {
+        await this.reconcilePushPreference();
+    }
+
+    async enablePush(): Promise<void> {
+        const permission = this.getBrowserPermission();
+        if (permission === "denied") {
+            throw new NotificationPermissionDeniedError();
+        }
+
+        let token: string | null = null;
+        if (permission === "default") {
+            token = await requestNotificationPermission();
+        } else {
+            token = await getToken();
+        }
+
+        if (!token) {
+            throw new Error("Failed to get FCM token");
+        }
+
+        this.setStoredToken(token);
+        await this.saveToken(token);
+        this.setPushEnabled(true);
+    }
+
+    async disablePush(): Promise<void> {
+        this.setPushEnabled(false);
+        const token = this.getStoredToken();
+        if (token) {
+            try {
+                await this.removeToken(token);
+            } catch {
+                this.removeStoredToken();
+                this.lastPostedToken = null;
+            }
+        }
+        await this.deactivateAllServerTokens();
+        this.removeStoredToken();
+        this.lastPostedToken = null;
     }
 
     async getNotifications(page = 1) {
@@ -112,61 +256,14 @@ class NotificationService {
         }
     }
 
-    onMessage(callback: (payload: any) => void) {
-        onMessageListener().then((payload: any) => {
-            callback(payload);
-        });
-    }
-
-    // Check if token is valid and refresh if needed
-    async validateToken() {
-        const storedToken = this.getStoredToken();
-        if (!storedToken) {
-            return false;
-        }
-
-        try {
-            // Get new token from Firebase
-            const newToken = await getToken();
-            if (newToken && newToken !== storedToken) {
-                // Token has changed, update it with device info
-                await this.saveToken(newToken);
-                this.setStoredToken(newToken);
-            }
-            return true;
-        } catch (error) {
-            // If token is invalid, remove it
-            this.removeStoredToken();
-            return false;
-        }
-    }
-
-    // Remove token when user logs out
     async handleLogout() {
-        const token = this.getStoredToken();
-        if (token) {
-            try {
-                await this.removeToken(token);
-            } catch (error) {
-                console.error("Error removing token on logout:", error);
-            }
-            localStorage.removeItem(TOKEN_KEY);
-        }
+        // Logout ≠ turn off push; keep pref so login reflects last toggle choice.
+        this.removeStoredToken();
+        this.lastPostedToken = null;
     }
 
-    // Remove token when user revokes notification permission
     async handlePermissionRevoked() {
-        const token = this.getStoredToken();
-        if (token) {
-            try {
-                await this.removeToken(token);
-            } catch (error) {
-                console.error(
-                    "Error removing token on permission revoked:",
-                    error
-                );
-            }
-        }
+        await this.disablePush();
     }
 }
 

@@ -73,7 +73,7 @@ const AppSidebar = ({ isOpen, onClose }: AppSidebarProps) => {
         },
         {
             icon: Banknote,
-            label: t("bankAccount"),
+            label: t("bankAccountAndSettings"),
             path: "/bank-account",
         },
         // Add members management for house owners

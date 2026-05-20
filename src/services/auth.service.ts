@@ -95,6 +95,18 @@ class AuthService {
         }
     }
 
+    /** Loads current user from API (GET /api/auth/me). */
+    async fetchProfile(): Promise<User> {
+        const response = await axiosInstance.get<User>("/api/auth/me");
+        const profile = response.data;
+        const currentUser = this.getUser();
+        const merged: User = currentUser
+            ? { ...currentUser, ...profile, bankAccount: profile.bankAccount }
+            : profile;
+        localStorage.setItem(this.USER_KEY, JSON.stringify(merged));
+        return merged;
+    }
+
     getBankAccount(): BankAccount | null {
         return this.getUser()?.bankAccount ?? null;
     }

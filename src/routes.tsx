@@ -51,16 +51,7 @@ function AppRoutes() {
                 />
                 <Route
                     path="/settings"
-                    element={
-                        <div className="container mx-auto p-6 space-y-8">
-                            <h1 className="text-3xl font-bold text-foreground">
-                                {t("settings")}
-                            </h1>
-                            <p className="text-muted-foreground mt-2">
-                                {t("featureInDevelopment")}
-                            </p>
-                        </div>
-                    }
+                    element={<Navigate to="/bank-account" replace />}
                 />
                 <Route
                     path="/help"

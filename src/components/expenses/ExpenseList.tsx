@@ -36,7 +36,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotificationListener } from "@/hooks/useNotificationListener";
 
 interface ExpenseListProps {
     onUpdateExpense?: () => void;
@@ -90,9 +90,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
         [isLoading, pagination.currentPage, pagination.totalPages]
     );
 
-    // Add notification handler
-    useNotifications(() => {
-        console.log("Notification received, refreshing expenses...");
+    useNotificationListener(() => {
         fetchExpenses(pagination.currentPage);
     });
 

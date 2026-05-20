@@ -1,67 +1,99 @@
-import { useState, useEffect } from "react";
-import { Switch } from "@/components/ui/switch";
-import { useAuth } from "@/contexts/AuthContext";
-import { notificationService } from "@/services/notification.service";
-import { toast } from "sonner";
+import { useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+    NotificationPermissionDeniedError,
+    useNotificationSettings,
+    type PushStatus,
+} from "@/contexts/NotificationContext";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+function statusLabel(
+    status: PushStatus,
+    t: (key: string) => string
+): string {
+    switch (status) {
+        case "on":
+            return t("notificationStatusOn");
+        case "blocked":
+            return t("notificationStatusBlocked");
+        case "pending":
+            return t("notificationStatusPending");
+        default:
+            return t("notificationStatusOff");
+    }
+}
 
 export default function NotificationSettings() {
-    const [isEnabled, setIsEnabled] = useState(false);
-    const { user } = useAuth();
     const { t } = useLanguage();
+    const {
+        isEnabled,
+        pushStatus,
+        isBusy,
+        browserPermission,
+        enablePush,
+        disablePush,
+        syncPushState,
+    } = useNotificationSettings();
 
     useEffect(() => {
-        // Check if notifications are enabled
-        if ("Notification" in window) {
-            setIsEnabled(Notification.permission === "granted");
-        }
-    }, []);
+        void syncPushState();
+    }, [syncPushState]);
 
-    const handleToggle = async () => {
-        if (!user) return;
-
+    const handleToggle = async (checked: boolean) => {
         try {
-            if (!isEnabled) {
-                const permissionGranted =
-                    await notificationService.requestNotificationPermission();
-                if (permissionGranted) {
-                    const subscription =
-                        await notificationService.subscribeToPushNotifications(
-                            user.id
-                        );
-                    if (subscription) {
-                        setIsEnabled(true);
-                        toast.success(t("notificationsEnabled"));
-                    }
-                }
+            if (checked) {
+                await enablePush();
+                toast.success(t("notificationPermissionGranted"));
             } else {
-                const unsubscribed =
-                    await notificationService.unsubscribeFromPushNotifications(
-                        user.id
-                    );
-                if (unsubscribed) {
-                    setIsEnabled(false);
-                    toast.success(t("notificationsDisabled"));
-                }
+                await disablePush();
+                toast.success(t("notificationPermissionRemoved"));
             }
         } catch (error) {
+            if (error instanceof NotificationPermissionDeniedError) {
+                toast.error(t("notificationPermissionDenied"), {
+                    description: t("notificationDeniedHint"),
+                    duration: 8000,
+                });
+                return;
+            }
             console.error("Error toggling notifications:", error);
-            toast.error(t("notificationToggleError"));
+            toast.error(
+                checked
+                    ? t("notificationPermissionDenied")
+                    : t("notificationPermissionRemoveFailed")
+            );
         }
     };
 
+    const permissionBlocked = browserPermission === "denied";
+
     return (
-        <div className="flex items-center justify-between p-4">
-            <div>
-                <h3 className="text-lg font-medium">{t("notifications")}</h3>
-                <p className="text-sm text-gray-500">
-                    {t("notificationsDescription")}
+        <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 space-y-1">
+                <p
+                    className={cn(
+                        "text-sm font-medium",
+                        pushStatus === "on" && "text-primary",
+                        pushStatus === "blocked" && "text-destructive",
+                        pushStatus === "pending" && "text-muted-foreground",
+                        pushStatus === "off" && "text-muted-foreground"
+                    )}
+                >
+                    {statusLabel(pushStatus, t)}
                 </p>
+                {permissionBlocked && (
+                    <p className="text-xs text-muted-foreground">
+                        {t("notificationDeniedHint")}
+                    </p>
+                )}
             </div>
             <Switch
                 checked={isEnabled}
                 onCheckedChange={handleToggle}
-                className="data-[state=checked]:bg-blue-600"
+                disabled={isBusy || permissionBlocked}
+                aria-label={t("notifications")}
             />
         </div>
     );

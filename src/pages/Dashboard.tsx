@@ -52,7 +52,7 @@ import {
     isAllowedImageFile,
 } from "@/lib/image-files";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotificationListener } from "@/hooks/useNotificationListener";
 import VietQrCard from "@/components/payments/VietQrCard";
 import type { BankAccount } from "@/services/auth.service";
 
@@ -171,11 +171,7 @@ const Dashboard = () => {
             .replace("{to}", toName)
             .replace("{date}", formatSettlementQrDate(date));
 
-    // Add notification handler
-    useNotifications(() => {
-        // Refresh both expenses and stats
-        // setRefetchTrigger((prev) => prev + 1);
-
+    useNotificationListener(() => {
         fetchStats();
     });
 

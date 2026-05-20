@@ -1,4 +1,4 @@
-const CACHE_NAME = 'william-calculate-v3';
+const CACHE_NAME = 'william-calculate-v4';
 
 self.addEventListener('install', (event) => {
 	// Skip waiting to activate the new service worker immediately
@@ -23,7 +23,14 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	// Let the browser handle the request normally
+	// Navigation: network-first so cold PWA opens get fresh index.html
+	if (event.request.mode === 'navigate') {
+		event.respondWith(
+			fetch(event.request).catch(() => caches.match(event.request))
+		);
+		return;
+	}
+
 	event.respondWith(fetch(event.request));
 });
 

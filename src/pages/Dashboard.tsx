@@ -586,6 +586,7 @@ const Dashboard = () => {
                                 type="button"
                                 variant="outline"
                                 size="icon"
+                                data-file-picker-trigger
                                 onClick={() => receiptInputRef.current?.click()}
                                 disabled={
                                     isLoading ||

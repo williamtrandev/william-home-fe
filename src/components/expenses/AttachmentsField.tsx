@@ -157,6 +157,7 @@ const AttachmentsField = ({
                 {canAddMore && (
                     <button
                         type="button"
+                        data-file-picker-trigger
                         onClick={() => inputRef.current?.click()}
                         disabled={isUploading}
                         className={cn(

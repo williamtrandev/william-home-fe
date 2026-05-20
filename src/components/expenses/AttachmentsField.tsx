@@ -8,16 +8,12 @@ import {
     type Attachment,
 } from "@/services/expense.service";
 import ImageLightbox from "@/components/ui/ImageLightbox";
+import {
+    IMAGE_FILE_ACCEPT,
+    MAX_IMAGE_FILE_BYTES,
+    isAllowedImageFile,
+} from "@/lib/image-files";
 import { cn } from "@/lib/utils";
-
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_TYPES = new Set([
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/heic",
-    "image/heif",
-]);
 
 interface AttachmentsFieldProps {
     expenseId: string;
@@ -48,11 +44,11 @@ const AttachmentsField = ({
             return null;
         }
         for (const f of files) {
-            if (!ALLOWED_TYPES.has(f.type)) {
+            if (!isAllowedImageFile(f)) {
                 toast.error(t("attachmentTypeUnsupported"));
                 return null;
             }
-            if (f.size > MAX_FILE_BYTES) {
+            if (f.size > MAX_IMAGE_FILE_BYTES) {
                 toast.error(t("attachmentTooLarge"));
                 return null;
             }
@@ -186,10 +182,11 @@ const AttachmentsField = ({
             <input
                 ref={inputRef}
                 type="file"
-                accept="image/*"
-                capture="environment"
+                accept={IMAGE_FILE_ACCEPT}
                 multiple
-                hidden
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
                 onChange={handleFileChange}
             />
 

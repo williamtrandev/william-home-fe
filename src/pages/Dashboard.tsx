@@ -46,6 +46,11 @@ import {
     normalizeBreakdown,
     type CategoryKey,
 } from "@/lib/categories";
+import {
+    IMAGE_FILE_ACCEPT,
+    MAX_IMAGE_FILE_BYTES,
+    isAllowedImageFile,
+} from "@/lib/image-files";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/hooks/useNotifications";
 import VietQrCard from "@/components/payments/VietQrCard";
@@ -239,15 +244,6 @@ const Dashboard = () => {
         };
     }, [pendingPreviews]);
 
-    const ALLOWED_RECEIPT_TYPES = new Set([
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "image/heic",
-        "image/heif",
-    ]);
-    const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
-
     const handlePickReceipts = (e: React.ChangeEvent<HTMLInputElement>) => {
         const picked = Array.from(e.target.files || []);
         // Reset immediately so the same file can be re-picked after removal.
@@ -260,11 +256,11 @@ const Dashboard = () => {
             return;
         }
         for (const f of picked) {
-            if (!ALLOWED_RECEIPT_TYPES.has(f.type)) {
+            if (!isAllowedImageFile(f)) {
                 toast.error(t("attachmentTypeUnsupported"));
                 return;
             }
-            if (f.size > MAX_RECEIPT_BYTES) {
+            if (f.size > MAX_IMAGE_FILE_BYTES) {
                 toast.error(t("attachmentTooLarge"));
                 return;
             }
@@ -621,10 +617,11 @@ const Dashboard = () => {
                         <input
                             ref={receiptInputRef}
                             type="file"
-                            accept="image/*"
-                            capture="environment"
+                            accept={IMAGE_FILE_ACCEPT}
                             multiple
-                            hidden
+                            className="sr-only"
+                            tabIndex={-1}
+                            aria-hidden
                             onChange={handlePickReceipts}
                         />
                         {pendingReceipts.length > 0 && (

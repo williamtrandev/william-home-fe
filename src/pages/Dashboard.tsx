@@ -835,7 +835,7 @@ const Dashboard = () => {
                 open={showPaymentDialog}
                 onOpenChange={setShowPaymentDialog}
             >
-                <DialogContent className="w-[350px] sm:w-[500px] mx-auto rounded-lg max-h-[85vh] overflow-y-auto">
+                <DialogContent className="w-[calc(100vw-1rem)] sm:w-full sm:max-w-2xl mx-auto rounded-xl max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
                     <DialogHeader>
                         <DialogTitle className="text-center text-lg">
                             {t("paymentCalculation")}

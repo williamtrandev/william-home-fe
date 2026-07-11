@@ -175,7 +175,7 @@ const VietQrCard = ({
                             loading="lazy"
                         />
                     </div>
-                    <div className="space-y-3 text-sm">
+                    <div className="min-w-0 space-y-3 text-sm">
                         <div className="rounded-xl bg-muted/50 p-3">
                             <div className="text-xs text-muted-foreground">
                                 {t("accountName")}
@@ -185,19 +185,19 @@ const VietQrCard = ({
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="rounded-lg bg-muted/50 p-2">
+                            <div className="min-w-0 rounded-lg bg-muted/50 p-2">
                                 <div className="text-muted-foreground">
                                     {t("bank")}
                                 </div>
-                                <div className="mt-1 font-medium text-foreground">
+                                <div className="mt-1 break-words font-medium text-foreground">
                                     {bankAccount?.bankName}
                                 </div>
                             </div>
-                            <div className="rounded-lg bg-muted/50 p-2">
+                            <div className="min-w-0 rounded-lg bg-muted/50 p-2">
                                 <div className="text-muted-foreground">
                                     {t("accountNo")}
                                 </div>
-                                <div className="mt-1 font-medium text-foreground">
+                                <div className="mt-1 break-all font-medium text-foreground">
                                     {bankAccount?.accountNo}
                                 </div>
                             </div>
@@ -261,19 +261,19 @@ const VietQrCard = ({
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className="rounded-xl bg-slate-100 p-3">
+                                <div className="min-w-0 rounded-xl bg-slate-100 p-3">
                                     <div className="text-xs text-slate-500">
                                         {t("bank")}
                                     </div>
-                                    <div className="mt-1 font-semibold">
+                                    <div className="mt-1 break-words font-semibold">
                                         {bankAccount?.bankName}
                                     </div>
                                 </div>
-                                <div className="rounded-xl bg-slate-100 p-3">
+                                <div className="min-w-0 rounded-xl bg-slate-100 p-3">
                                     <div className="text-xs text-slate-500">
                                         {t("accountNo")}
                                     </div>
-                                    <div className="mt-1 font-semibold">
+                                    <div className="mt-1 break-all font-semibold">
                                         {bankAccount?.accountNo}
                                     </div>
                                 </div>
